@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use im_rc::HashMap;
 use std::error;
 use std::fmt;
 
@@ -87,7 +86,7 @@ pub struct SpanManager {
     spans: Vec<(usize, usize, usize)>,
 }
 impl SpanManager {
-    pub fn add_source(&mut self, source: String) -> SpanMaker {
+    pub fn add_source(&mut self, source: String) -> SpanMaker<'_> {
         let i = self.sources.len();
         self.sources.push(Source::new(source));
         SpanMaker {
@@ -159,7 +158,7 @@ impl SpanManager {
         let insertions = insertions.iter().copied().filter(|t| !t.0.is_empty());
         // Group by line
         use itertools::Itertools;
-        let insertions = insertions.chunk_by(|&(s, (y, x))| y);
+        let insertions = insertions.chunk_by(|&(_s, (y, _x))| y);
 
         let mut prev = None;
         for (y, chunk) in insertions.into_iter() {
@@ -202,7 +201,12 @@ impl<'a> SpanMaker<'a> {
         let source_ind = self.source_ind;
         let parent = &mut self.parent;
 
-        *self.pool.entry((l, r)).or_insert_with(|| parent.new_span(source_ind, l, r))
+        if let Some(&s) = self.pool.get(&(l, r)) {
+            return s;
+        }
+        let s = parent.new_span(source_ind, l, r);
+        self.pool.insert((l, r), s);
+        s
     }
 }
 
@@ -268,7 +272,7 @@ impl SpannedError {
     }
 }
 impl fmt::Display for SpannedError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
         Ok(())
     }
 }

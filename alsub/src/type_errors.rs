@@ -4,7 +4,7 @@
 // abs escape
 // general mismatch
 
-use std::collections::HashSet;
+use im_rc::HashSet;
 use std::u32;
 
 use crate::ast::InstantiateSourceKind;
@@ -137,7 +137,7 @@ fn be_a(s: &str) -> TMsg {
 }
 
 pub fn type_mismatch_err(
-    type_ctors: &[TypeCtor],
+    type_ctors: &im_rc::Vector<TypeCtor>,
     lhs: &VTypeNode,
     rhs: &UTypeNode,
 ) -> PartialTypeError {
@@ -154,7 +154,7 @@ pub fn type_mismatch_err(
         VObj { .. } => be_a("record"),
         VCase { .. } => be_a("variant"),
         VAbstract { ty, .. } => {
-            let tycon = &type_ctors[ty.0];
+            let tycon = type_ctors.get(ty.0).unwrap();
             let name = tycon.name.as_str();
             HaveTy(name.to_owned(), tycon.span)
         }
@@ -172,7 +172,7 @@ pub fn type_mismatch_err(
         UObj { .. } => be_a("record"),
         UCase { .. } => be_a("variant"),
         UAbstract { ty, .. } => {
-            let tycon = &type_ctors[ty.0];
+            let tycon = type_ctors.get(ty.0).unwrap();
             let name = tycon.name.as_str();
             HaveTy(name.to_owned(), tycon.span)
         }

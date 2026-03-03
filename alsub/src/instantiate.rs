@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use im_rc::HashMap;
 
 use crate::ast::StringId;
 use crate::core::*;
@@ -69,18 +69,18 @@ impl InstantionContext<'_> {
         let head = match node.0 {
             VInstantiateExist { .. } | VTop | VAbstract { .. } | VTypeVar(..) => unreachable!(),
 
-            VUnion(vals) => VUnion(vals.into_iter().map(|v| self.instantiate_val(v)).collect()),
+            VUnion(vals) => VUnion(vals.iter().copied().map(|v| self.instantiate_val(v)).collect()),
 
             VFunc { arg, ret } => VFunc {
                 arg: self.instantiate_use(arg),
                 ret: self.instantiate_val(ret),
             },
 
-            VObj { fields } => VObj {
+            VObj { ref fields } => VObj {
                 fields: fields
-                    .into_iter()
-                    .map(|(k, (rty, wty, span))| {
-                        (k, (self.instantiate_val(rty), wty.map(|w| self.instantiate_use(w)), span))
+                    .iter()
+                    .map(|(k, &(rty, wty, span))| {
+                        (*k, (self.instantiate_val(rty), wty.map(|w| self.instantiate_use(w)), span))
                     })
                     .collect(),
             },
@@ -142,26 +142,26 @@ impl InstantionContext<'_> {
         let head = match node.0 {
             UInstantiateUni { .. } | UBot | UAbstract { .. } | UTypeVar(..) => unreachable!(),
 
-            UIntersection(uses) => UIntersection(uses.into_iter().map(|u| self.instantiate_use(u)).collect()),
+            UIntersection(uses) => UIntersection(uses.iter().copied().map(|u| self.instantiate_use(u)).collect()),
 
             UFunc { arg, ret } => UFunc {
                 arg: self.instantiate_val(arg),
                 ret: self.instantiate_use(ret),
             },
 
-            UObj { fields } => UObj {
+            UObj { ref fields } => UObj {
                 fields: fields
-                    .into_iter()
-                    .map(|(k, (rty, wty, span))| {
-                        (k, (self.instantiate_use(rty), wty.map(|w| self.instantiate_val(w)), span))
+                    .iter()
+                    .map(|(k, &(rty, wty, span))| {
+                        (*k, (self.instantiate_use(rty), wty.map(|w| self.instantiate_val(w)), span))
                     })
                     .collect(),
             },
 
-            UCase { cases, wildcard } => {
+            UCase { ref cases, wildcard } => {
                 assert!(wildcard.is_none());
                 UCase {
-                    cases: cases.into_iter().map(|(n, ty)| (n, self.instantiate_use(ty))).collect(),
+                    cases: cases.iter().map(|(n, &ty)| (*n, self.instantiate_use(ty))).collect(),
                     wildcard: None,
                 }
             }

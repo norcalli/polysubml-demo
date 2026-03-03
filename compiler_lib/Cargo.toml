@@ -7,9 +7,9 @@ edition = "2024"
 
 [dependencies]
 lalrpop-util = { version = "0.20.2", features = ["lexer"] }
-rpds = "1"
+alsub = { path = "../alsub" }
+im-rc = "15"
 ustr = "1"
-itertools = "0.14.0"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

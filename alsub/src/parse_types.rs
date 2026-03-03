@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::hash::Hash;
 use std::rc::Rc;
 
 use crate::ast;
@@ -14,6 +11,8 @@ use crate::instantiate::Substitutions;
 use crate::spans::Span;
 use crate::spans::SpannedError as SyntaxError;
 use crate::type_errors::HoleSrc;
+use im_rc::HashMap;
+
 use crate::typeck::Bindings;
 use crate::unwindmap::UnwindMap;
 
@@ -47,14 +46,16 @@ type ParsedType = (PolyAndRecDeps, Span, ParsedTypeHead);
 type RcParsedType = Rc<ParsedType>;
 
 #[derive(Debug, Default, Clone)]
-pub struct PolyDeps(HashSet<SourceLoc>);
+pub struct PolyDeps(im_rc::HashSet<SourceLoc>);
 impl PolyDeps {
     pub fn single(loc: SourceLoc) -> Self {
-        Self(vec![loc].into_iter().collect())
+        Self(im_rc::HashSet::unit(loc))
     }
 
     fn extend(&mut self, other: &Self) {
-        self.0.extend(&other.0);
+        for loc in other.0.iter() {
+            self.0.insert(*loc);
+        }
     }
 
     pub fn get(&self, key: SourceLoc) -> bool {
@@ -135,10 +136,10 @@ impl<'a> TreeMaterializer<'a> {
             &Case(ref cases) => {
                 let mut utype_case_arms = HashMap::new();
                 let mut vtype_case_arms = Vec::new();
-                for (&tag, &(tag_span, ref ty)) in cases {
+                for (&tag, (tag_span, ty)) in cases {
                     let (v, u) = self.materialize_tree(ty);
 
-                    vtype_case_arms.push(((tag, v), tag_span));
+                    vtype_case_arms.push(((tag, v), *tag_span));
                     utype_case_arms.insert(tag, u);
                 }
 
@@ -171,14 +172,14 @@ impl<'a> TreeMaterializer<'a> {
                 (VFunc { arg: arg.1, ret: ret.0 }, UFunc { arg: arg.0, ret: ret.1 })
             }
             &Record(ref fields) => {
-                let mut vtype_fields = HashMap::with_capacity(fields.len());
-                let mut utype_fields = HashMap::with_capacity(fields.len());
-                for (&name, &(span, ref rty, ref wty)) in fields {
+                let mut vtype_fields = HashMap::new();
+                let mut utype_fields = HashMap::new();
+                for (&name, (span, rty, wty)) in fields {
                     let rty = self.materialize_tree(rty);
                     let wty = wty.as_ref().map(|wty| self.materialize_tree(wty));
 
-                    vtype_fields.insert(name, (rty.0, wty.map(|w| w.1), span));
-                    utype_fields.insert(name, (rty.1, wty.map(|w| w.0), span));
+                    vtype_fields.insert(name, (rty.0, wty.map(|w| w.1), *span));
+                    utype_fields.insert(name, (rty.1, wty.map(|w| w.0), *span));
                 }
 
                 (VObj { fields: vtype_fields }, UObj { fields: utype_fields })
@@ -197,7 +198,7 @@ impl<'a> TreeMaterializer<'a> {
 
             &VarJoin(kind, ref vars, ref sub) => {
                 let sub = sub.as_deref().map(|ty| self.materialize_tree(ty));
-                let var_set = vars.iter().map(|(&vs, &span)| vs).collect();
+                let var_set: im_rc::HashSet<_> = vars.keys().copied().collect();
 
                 match kind {
                     JoinKind::Union => {
@@ -211,7 +212,7 @@ impl<'a> TreeMaterializer<'a> {
                         if let Some(t) = sub {
                             vals.push(t.0);
                         }
-                        (VUnion(vals), UDisjointUnion(var_set, sub.map(|t| t.1)))
+                        (VUnion(vals.into()), UDisjointUnion(var_set, sub.map(|t| t.1)))
                     }
                     JoinKind::Intersect => {
                         let mut uses: Vec<_> = vars
@@ -224,7 +225,7 @@ impl<'a> TreeMaterializer<'a> {
                         if let Some(t) = sub {
                             uses.push(t.1);
                         }
-                        (VDisjointIntersect(var_set, sub.map(|t| t.0)), UIntersection(uses))
+                        (VDisjointIntersect(var_set, sub.map(|t| t.0)), UIntersection(uses.into()))
                     }
                 }
             }
@@ -280,8 +281,8 @@ impl<'a> TreeMaterializer<'a> {
         // First materialize all type trees
         let mut new_vars: Vec<_> = parsed
             .vars
-            .into_iter()
-            .map(|(name, (_, ty))| (name, self.materialize_tree(&ty).0))
+            .iter()
+            .map(|(name, (_, ty))| (*name, self.materialize_tree(ty).0))
             .collect();
         let mut ret_type = self.materialize_tree(&ret_type).1;
 
@@ -292,7 +293,7 @@ impl<'a> TreeMaterializer<'a> {
         let mut new_types = HashMap::new();
         // Now see if we have to instantiate type parameters to local abstract types
         for spec in parsed.poly_heads {
-            let subs = spec
+            let subs: HashMap<_, _> = spec
                 .params
                 .iter()
                 .copied()
@@ -300,27 +301,23 @@ impl<'a> TreeMaterializer<'a> {
                 .collect();
 
             let mut ctx = InstantionContext::new(self.core, Substitutions::Abs(&subs), spec.loc);
-            for (name, v) in new_vars.iter_mut() {
-                let old = *v;
+            for (_name, v) in new_vars.iter_mut() {
                 *v = ctx.instantiate_val(*v);
-                // println!("{}: inst {}->{}", name.into_inner(), old.0.0, v.0.0);
             }
             if should_instantiate_ret {
                 ret_type = ctx.instantiate_use(ret_type);
             }
 
             // Add the new types to new_types
-            for (name, tycon) in subs {
+            for (&name, &tycon) in &subs {
                 new_types.insert((spec.loc, name), tycon);
             }
         }
 
         for (name, ty) in new_vars {
-            // println!("var {}: {}", name.into_inner(), ty.0.0);
             bindings.vars.insert(name, ty);
         }
         for (alias, loc, name) in parsed.types {
-            // println!("type {}: tycon {}", alias.into_inner(), new_types.get(&(loc, name)).unwrap().0);
             bindings.types.insert(alias, *new_types.get(&(loc, name)).unwrap());
         }
         ret_type
@@ -331,7 +328,6 @@ impl<'a> TreeMaterializer<'a> {
     }
 
     pub fn add_pattern(&mut self, parsed: ParsedLetPattern, bindings: &mut Bindings) -> Use {
-        // println!("add pat {} {}", parsed.1.types.len(), parsed.1.poly_heads.len());
         self.materialize_and_instantiate_bindings(parsed.1, parsed.0, false, bindings)
     }
 
@@ -372,21 +368,20 @@ fn flip(k: &JoinKind) -> JoinKind {
     }
 }
 
+#[derive(Clone)]
 enum TypeVar {
     Rec(SourceLoc),
     Param(VarSpec),
 }
 pub struct TypeParser<'a> {
-    global_types: &'a UnwindMap<StringId, TypeCtorInd>,
+    global_types: &'a HashMap<StringId, TypeCtorInd>,
     local_types: UnwindMap<StringId, TypeVar>,
 
     // If loc isn't allowed in either kind, remove it from the map
-    // Can use regular hashmap here becuase each loc will only be processed
-    // at most once in a given tree, so no need for unwinding.
     join_allowed: HashMap<SourceLoc, JoinKind>,
 }
 impl<'a> TypeParser<'a> {
-    pub fn new(global_types: &'a UnwindMap<StringId, TypeCtorInd>) -> Self {
+    pub fn new(global_types: &'a HashMap<StringId, TypeCtorInd>) -> Self {
         Self {
             global_types,
             local_types: UnwindMap::new(),
@@ -441,14 +436,9 @@ impl<'a> TypeParser<'a> {
     }
 
     fn parse_type_sub_contravariant(&mut self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
-        for v in self.join_allowed.values_mut() {
-            *v = flip(v);
-        }
+        self.join_allowed = self.join_allowed.iter().map(|(&k, v)| (k, flip(v))).collect();
         let res = self.parse_type_sub(tyexpr);
-        for v in self.join_allowed.values_mut() {
-            *v = flip(v);
-        }
-
+        self.join_allowed = self.join_allowed.iter().map(|(&k, v)| (k, flip(v))).collect();
         res
     }
 
@@ -550,7 +540,7 @@ impl<'a> TypeParser<'a> {
                 let spec = Rc::new(PolyHeadData {
                     kind,
                     loc,
-                    params: parsed_params.into_iter().collect(),
+                    params: parsed_params.iter().map(|(&k, &v)| (k, v)).collect(),
                 });
                 ParsedTypeHead::PolyHead(spec, sub)
             }
@@ -612,7 +602,7 @@ impl<'a> TypeParser<'a> {
         let mut parsed_params = HashMap::new();
         for param in ty_params.iter().copied() {
             let (name, name_span) = param.name;
-            let (alias, alias_span) = param.alias;
+            let (alias, _alias_span) = param.alias;
 
             parsed_params.insert(name, name_span);
             self.local_types.insert(alias, TypeVar::Param(VarSpec { loc, name }));
@@ -622,7 +612,7 @@ impl<'a> TypeParser<'a> {
         let spec = Rc::new(PolyHeadData {
             kind,
             loc,
-            params: parsed_params.into_iter().collect(),
+            params: parsed_params.iter().map(|(&k, &v)| (k, v)).collect(),
         });
         out.poly_heads.push(spec.clone());
         Some(spec)
@@ -676,7 +666,7 @@ impl<'a> TypeParser<'a> {
 
                 let poly_spec = self.add_type_params(loc, ty_params, ast::PolyKind::Existential, out);
 
-                let mut field_names = HashMap::with_capacity(pairs.len());
+                let mut field_names = HashMap::new();
                 let mut fields = HashMap::new();
                 let mut deps = PolyAndRecDeps::default();
                 for &((name, name_span), ref sub_pattern) in pairs {

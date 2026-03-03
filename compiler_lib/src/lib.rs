@@ -2,34 +2,24 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-mod ast;
-mod bound_pairs_set;
 mod codegen;
-mod core;
 mod grammar;
-mod instantiate;
 mod js;
-mod parse_types;
-mod reachability;
-mod spans;
-mod type_errors;
-mod typeck;
-mod unwindmap;
 
-use std::mem;
+// Re-export alsub modules so grammar.lalr's `use super::ast` and `use super::spans` resolve
+pub use alsub::ast;
+pub use alsub::spans;
 
 use lalrpop_util::ParseError;
 
 use self::codegen::ModuleBuilder;
 use self::grammar::ScriptParser;
-use self::spans::SpanMaker;
-use self::spans::SpanManager;
-use self::spans::SpannedError;
-use self::typeck::TypeckState;
+use alsub::spans::{SpanMaker, SpanManager, SpannedError};
+use alsub::typeck::TypeckState;
 
 fn convert_parse_error<T: std::fmt::Display>(
     mut sm: SpanMaker,
-    e: ParseError<usize, T, (&'static str, spans::Span)>,
+    e: ParseError<usize, T, (&'static str, alsub::spans::Span)>,
 ) -> SpannedError {
     match e {
         ParseError::InvalidToken { location } => {
@@ -117,7 +107,7 @@ impl State {
     }
 
     pub fn reset(&mut self) {
-        mem::swap(&mut self.checker, &mut TypeckState::new());
-        mem::swap(&mut self.compiler, &mut ModuleBuilder::new());
+        self.checker = TypeckState::new();
+        self.compiler = ModuleBuilder::new();
     }
 }

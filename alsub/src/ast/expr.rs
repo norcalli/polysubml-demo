@@ -152,7 +152,7 @@ pub fn block(statements: Vec<Statement>, expr: Box<SExpr>) -> Expr {
 
 pub fn call(func: Box<SExpr>, arg: Box<SExpr>, eval_arg_first: bool) -> Expr {
     let func = match &func.0 {
-        Expr::InstantiateUni(e) => func,
+        Expr::InstantiateUni(_) => func,
         _ => {
             let span = func.1;
             Box::new((

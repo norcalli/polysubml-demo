@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use im_rc::HashMap;
 use std::hash::Hash;
 
 // utility functions
@@ -10,15 +10,15 @@ pub fn sorted<T: Ord>(it: impl IntoIterator<Item = T>) -> Vec<T> {
 }
 
 pub struct UnwindPoint(usize);
-pub struct UnwindMap<K, V> {
+pub struct UnwindMap<K: Eq + Hash + Clone, V: Clone> {
     pub m: HashMap<K, V>,
-    changes: Vec<(K, Option<V>)>,
+    snapshots: Vec<HashMap<K, V>>,
 }
-impl<K: Eq + Hash + Clone, V> UnwindMap<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> UnwindMap<K, V> {
     pub fn new() -> Self {
         Self {
             m: HashMap::new(),
-            changes: Vec::new(),
+            snapshots: Vec::new(),
         }
     }
 
@@ -27,28 +27,22 @@ impl<K: Eq + Hash + Clone, V> UnwindMap<K, V> {
     }
 
     pub fn insert(&mut self, k: K, v: V) {
-        let old = self.m.insert(k.clone(), v);
-        self.changes.push((k, old));
+        self.m.insert(k, v);
     }
 
     pub fn unwind_point(&mut self) -> UnwindPoint {
-        UnwindPoint(self.changes.len())
+        let idx = self.snapshots.len();
+        self.snapshots.push(self.m.clone());
+        UnwindPoint(idx)
     }
 
     pub fn unwind(&mut self, n: UnwindPoint) {
-        let n = n.0;
-        assert!(n <= self.changes.len());
-        while self.changes.len() > n {
-            let (k, old) = self.changes.pop().unwrap();
-            match old {
-                Some(v) => self.m.insert(k, v),
-                None => self.m.remove(&k),
-            };
-        }
+        self.m = self.snapshots[n.0].clone();
+        self.snapshots.truncate(n.0);
     }
 
     pub fn make_permanent(&mut self, n: UnwindPoint) {
         assert!(n.0 == 0);
-        self.changes.clear();
+        self.snapshots.clear();
     }
 }

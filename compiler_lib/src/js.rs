@@ -624,12 +624,12 @@ impl DeadCodeRemover {
     }
 }
 
-pub fn optimize(expr: &mut Expr, main_scope_name: String, bindings: &HashMap<crate::ast::StringId, Expr>) {
+pub fn optimize(expr: &mut Expr, main_scope_name: String, bindings: &im_rc::HashMap<crate::ast::StringId, Expr>) {
     let mut optimizer = DeadCodeRemover::new();
     optimizer.used.insert(main_scope_name, HashSet::new());
     for expr in bindings.values() {
         if let Expr2::ScopeField(s1, s2) = &expr.0 {
-            optimizer.add_var(s1, s2.clone());
+            optimizer.add_var(&s1, s2.clone());
         }
     }
     optimizer.process_used_expr(&mut expr.0);

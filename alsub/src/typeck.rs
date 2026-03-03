@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use im_rc::HashMap;
 
 use crate::ast;
 use crate::ast::StringId;
@@ -9,42 +7,25 @@ use crate::parse_types::TreeMaterializerState;
 use crate::parse_types::TypeParser;
 use crate::spans::SpannedError as SyntaxError;
 use crate::type_errors::HoleSrc;
-use crate::unwindmap::UnwindMap;
-use crate::unwindmap::UnwindPoint;
 
 use UTypeHead::*;
 use VTypeHead::*;
 
 type Result<T> = std::result::Result<T, SyntaxError>;
 
-type BindingsUnwindPoint = (UnwindPoint, UnwindPoint, ScopeLvl);
+#[derive(Clone)]
 pub struct Bindings {
-    pub vars: UnwindMap<StringId, Value>,
-    pub types: UnwindMap<StringId, TypeCtorInd>,
+    pub vars: HashMap<StringId, Value>,
+    pub types: HashMap<StringId, TypeCtorInd>,
     pub scopelvl: ScopeLvl,
 }
 impl Bindings {
     fn new() -> Self {
         Self {
-            vars: UnwindMap::new(),
-            types: UnwindMap::new(),
+            vars: HashMap::new(),
+            types: HashMap::new(),
             scopelvl: ScopeLvl(0),
         }
-    }
-
-    fn unwind_point(&mut self) -> BindingsUnwindPoint {
-        (self.vars.unwind_point(), self.types.unwind_point(), self.scopelvl)
-    }
-
-    fn unwind(&mut self, n: BindingsUnwindPoint) {
-        self.vars.unwind(n.0);
-        self.types.unwind(n.1);
-        self.scopelvl = n.2;
-    }
-
-    fn make_permanent(&mut self, n: BindingsUnwindPoint) {
-        self.vars.make_permanent(n.0);
-        self.types.make_permanent(n.1);
     }
 }
 
@@ -77,11 +58,9 @@ impl TypeckState {
             TY_STR,
         };
 
-        let n = new.bindings.unwind_point();
         for (i, ty) in new.core.type_ctors.iter().enumerate() {
             new.bindings.types.insert(ty.name, TypeCtorInd(i));
         }
-        new.bindings.make_permanent(n);
 
         new
     }
@@ -103,14 +82,14 @@ impl TypeckState {
         match &expr.0 {
             Block(e) => {
                 assert!(e.statements.len() >= 1);
-                let mark = self.bindings.unwind_point();
+                let saved_bindings = self.bindings.clone();
 
                 for stmt in e.statements.iter() {
                     self.check_statement(stmt, false)?;
                 }
 
                 self.check_expr(&e.expr, bound)?;
-                self.bindings.unwind(mark);
+                self.bindings = saved_bindings;
             }
             Call(e) => {
                 let arg_type = self.infer_expr(&e.arg)?;
@@ -149,7 +128,7 @@ impl TypeckState {
                 }
                 let bound = self.core.new_use(
                     UInstantiateUni {
-                        params: Rc::new(RefCell::new(params)),
+                        explicit_params: params,
                         target: bound,
                         src_template: (e.types.1, e.source),
                     },
@@ -177,14 +156,14 @@ impl TypeckState {
                 let mut wildcard_type = None;
 
                 // Pattern reachability checking
-                let mut case_names = HashMap::with_capacity(cases.len());
+                let mut case_names: HashMap<StringId, _> = HashMap::new();
                 let mut wildcard = None;
 
                 for ((pattern, pattern_span), rhs_expr) in cases {
                     use ast::LetPattern::*;
                     match pattern {
                         Case(tag, val_pat) => {
-                            if let Some(old_span) = case_names.insert(&tag.0, *pattern_span) {
+                            if let Some(old_span) = case_names.insert(tag.0, *pattern_span) {
                                 return Err(SyntaxError::new2(
                                     "SyntaxError: Duplicate match pattern",
                                     *pattern_span,
@@ -193,12 +172,12 @@ impl TypeckState {
                                 ));
                             }
 
-                            let mark = self.bindings.unwind_point();
+                            let saved_bindings = self.bindings.clone();
                             let pattern_bound = self.process_let_pattern(&*val_pat, true)?;
                             // Note: bound is bound for the result types, not the pattern
                             self.check_expr(rhs_expr, bound)?;
                             case_type_pairs.push((tag.0, pattern_bound));
-                            self.bindings.unwind(mark);
+                            self.bindings = saved_bindings;
                         }
                         Record(..) => {
                             return Err(SyntaxError::new1(
@@ -220,12 +199,12 @@ impl TypeckState {
 
                             wildcard = Some(*pattern_span);
 
-                            let mark = self.bindings.unwind_point();
+                            let saved_bindings = self.bindings.clone();
                             let pattern_bound = self.process_let_pattern(pattern, true)?;
                             // Note: bound is bound for the result types, not the pattern
                             self.check_expr(rhs_expr, bound)?;
                             wildcard_type = Some(pattern_bound);
-                            self.bindings.unwind(mark);
+                            self.bindings = saved_bindings;
                         }
                     }
                 }
@@ -280,14 +259,14 @@ impl TypeckState {
             // TODO - deduplicate this code
             Block(e) => {
                 assert!(e.statements.len() >= 1);
-                let mark = self.bindings.unwind_point();
+                let saved_bindings = self.bindings.clone();
 
                 for stmt in e.statements.iter() {
                     self.check_statement(stmt, false)?;
                 }
 
                 let res = self.infer_expr(&e.expr)?;
-                self.bindings.unwind(mark);
+                self.bindings = saved_bindings;
                 Ok(res)
             }
             Case(e) => {
@@ -308,7 +287,7 @@ impl TypeckState {
                     expr.1,
                 )?;
 
-                let mark = self.bindings.unwind_point();
+                let saved_bindings = self.bindings.clone();
                 let mut mat = TreeMaterializerState::new(self.bindings.scopelvl);
                 let mut mat = mat.with(&mut self.core);
                 let func_type = mat.add_func_type(&parsed);
@@ -316,7 +295,7 @@ impl TypeckState {
 
                 self.check_expr(&e.body, ret_bound)?;
 
-                self.bindings.unwind(mark);
+                self.bindings = saved_bindings;
                 Ok(func_type)
             }
             // Allow if expressions to be inferred as well as checked
@@ -331,7 +310,7 @@ impl TypeckState {
                     Ok(res1)
                 } else {
                     // spans for Union nodes don't matter, so just use whatever is handy
-                    Ok(self.core.new_val(VUnion(vec![res1, res2]), span, None))
+                    Ok(self.core.new_val(VUnion(vec![res1, res2].into()), span, None))
                 }
             }
             InstantiateExist(e) => {
@@ -346,7 +325,7 @@ impl TypeckState {
                 let target = self.infer_expr(&e.expr)?;
                 Ok(self.core.new_val(
                     VInstantiateExist {
-                        params: Rc::new(RefCell::new(params)),
+                        explicit_params: params,
                         target,
                         src_template: (sigs_span, src_kind),
                     },
@@ -367,10 +346,10 @@ impl TypeckState {
                 Ok(self.core.simple_val(ty, span))
             }
             Record(e) => {
-                let mut field_names = HashMap::with_capacity(e.fields.len());
+                let mut field_names: HashMap<StringId, _> = HashMap::new();
                 let mut field_type_pairs = Vec::with_capacity(e.fields.len());
                 for ((name, name_span), expr, mutable, type_annot) in &e.fields {
-                    if let Some(old_span) = field_names.insert(&*name, *name_span) {
+                    if let Some(old_span) = field_names.insert(*name, *name_span) {
                         return Err(SyntaxError::new2(
                             "SyntaxError: Repeated field name",
                             *name_span,
@@ -493,12 +472,12 @@ impl TypeckState {
 
         // Now process the body of each function definition one by one
         for (parsed, body) in temp {
-            let mark = self.bindings.unwind_point();
+            let saved_bindings = self.bindings.clone();
 
             let ret_bound = mat.with(&mut self.core).add_func_sig(parsed, &mut self.bindings);
             self.check_expr(body, ret_bound)?;
 
-            self.bindings.unwind(mark);
+            self.bindings = saved_bindings;
         }
 
         Ok(())
@@ -547,30 +526,24 @@ impl TypeckState {
     }
 
     pub fn check_script(&mut self, parsed: &[ast::Statement]) -> Result<()> {
-        // Tell type checker to start keeping track of changes to the type state so we can roll
-        // back all the changes if the script contains an error.
-        self.core.save();
-        let mark = self.bindings.unwind_point();
+        // Snapshot the current state so we can roll back if the script contains an error.
+        // NOTE: Cloning self.core is cheap (im-rc structural sharing) and produces a
+        // proper snapshot — the resolved_instantiation_params cache rolls back correctly.
+        let snapshot_core = self.core.clone();
+        let snapshot_bindings = self.bindings.clone();
 
         let len = parsed.len();
         for (i, item) in parsed.iter().enumerate() {
             let is_last = i == len - 1;
             if let Err(e) = self.check_statement(item, is_last) {
-                // println!("num type nodes {}", self.core.num_type_nodes());
-
                 // Roll back changes to the type state and bindings
-                self.core.revert();
-                self.bindings.unwind(mark);
+                self.core = snapshot_core;
+                self.bindings = snapshot_bindings;
                 return Err(e);
             }
         }
 
-        // Now that script type-checked successfully, make the global definitions permanent
-        // by removing them from the changes rollback list
-        self.core.make_permanent();
-        self.bindings.make_permanent(mark);
-        // println!("num type nodes {}", self.core.num_type_nodes());
-        // println!("{} vars {} flows", self.core.varcount, self.core.flowcount);
+        // Success - changes are already in place, no make_permanent needed
         Ok(())
     }
 }

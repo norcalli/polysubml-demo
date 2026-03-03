@@ -1,9 +1,9 @@
 use std::mem::swap;
 
-use crate::ast;
-use crate::ast::StringId;
+use alsub::ast;
+use alsub::ast::StringId;
 use crate::js;
-use crate::unwindmap::UnwindMap;
+use alsub::unwindmap::UnwindMap;
 
 pub struct ModuleBuilder {
     scope_var_name: String, // name of JS var used to store variables in the current scope

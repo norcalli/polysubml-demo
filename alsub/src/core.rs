@@ -1,7 +1,7 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::HashSet;
 use std::rc::Rc;
+
+use im_rc::HashMap;
+use im_rc::HashSet;
 
 use crate::ast::InstantiateSourceKind;
 use crate::ast::PolyKind;
@@ -40,7 +40,7 @@ pub struct Use(pub TypeNodeInd);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ScopeLvl(pub u32);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeCtor {
     pub name: StringId,
     pub span: Option<Span>, // None for builtin type ctors
@@ -66,7 +66,7 @@ pub struct TypeCtorInd(pub usize);
 pub struct PolyHeadData {
     pub kind: PolyKind,
     pub loc: SourceLoc,
-    pub params: Box<[(StringId, Span)]>,
+    pub params: Rc<[(StringId, Span)]>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -78,10 +78,9 @@ pub struct VarSpec {
 // Heads will be cloned during instantiation in order to work around the borrow checker
 #[derive(Debug, Clone)]
 pub enum VTypeHead {
-    VUnion(Vec<Value>),
+    VUnion(Rc<[Value]>),
     VInstantiateExist {
-        // Only mutated during instantiation process and during cleanup, but use RefCell for simplicity
-        params: Rc<RefCell<HashMap<StringId, (Value, Use)>>>,
+        explicit_params: HashMap<StringId, (Value, Use)>,
         target: Value,
         src_template: (Span, InstantiateSourceKind),
     },
@@ -108,10 +107,9 @@ pub enum VTypeHead {
 
 #[derive(Debug, Clone)]
 pub enum UTypeHead {
-    UIntersection(Vec<Use>),
+    UIntersection(Rc<[Use]>),
     UInstantiateUni {
-        // Only mutated during instantiation process and during cleanup, but use RefCell for simplicity
-        params: Rc<RefCell<HashMap<StringId, (Value, Use)>>>,
+        explicit_params: HashMap<StringId, (Value, Use)>,
         target: Use,
         src_template: (Span, InstantiateSourceKind),
     },
@@ -142,7 +140,8 @@ enum CheckHeadsResult {
     Done,
     Instantiate {
         poly: Rc<PolyHeadData>,
-        substitution_params: Rc<RefCell<HashMap<StringId, (Value, Use)>>>,
+        explicit_params: HashMap<StringId, (Value, Use)>,
+        instantiation_node: TypeNodeInd,
         src_template: (Span, InstantiateSourceKind),
         reason: FlowReason,
 
@@ -154,7 +153,7 @@ enum CheckHeadsResult {
 }
 
 fn check_heads(
-    type_ctors: &[TypeCtor],
+    type_ctors: &im_rc::Vector<TypeCtor>,
     lhs_ind: Value,
     lhs: &VTypeNode,
     rhs_ind: Use,
@@ -188,14 +187,13 @@ fn check_heads(
     // Now handle disjoint unions and intersections
     if let &VDisjointIntersect(ref vars1, def1) = &lhs.0 {
         match &rhs.0 {
-            &UDisjointUnion(ref vars2, def2) => {
+            &UDisjointUnion(ref vars2, _def2) => {
                 if edge_context.bound_pairs.disjoint_union_vars_have_match(vars1, vars2) {
                     return Ok(Done);
                 }
             }
             &UTypeVar(tv2) => {
-                let mut vars2 = HashSet::new();
-                vars2.insert(tv2);
+                let vars2 = HashSet::unit(tv2);
                 if edge_context.bound_pairs.disjoint_union_vars_have_match(vars1, &vars2) {
                     return Ok(Done);
                 }
@@ -210,8 +208,7 @@ fn check_heads(
     } else if let &UDisjointUnion(ref vars2, def2) = &rhs.0 {
         // Case where lhs is DisjointIntersect was already handled above, so we only need to check for lone TypeVar
         if let &VTypeVar(tv1) = &lhs.0 {
-            let mut vars1 = HashSet::new();
-            vars1.insert(tv1);
+            let vars1 = HashSet::unit(tv1);
             if edge_context.bound_pairs.disjoint_union_vars_have_match(&vars1, vars2) {
                 return Ok(Done);
             }
@@ -227,7 +224,7 @@ fn check_heads(
     // Important: Only do this after checking for unions and intersections
     if let &VInstantiateExist {
         target,
-        ref params,
+        ref explicit_params,
         src_template,
     } = &lhs.0
     {
@@ -238,7 +235,8 @@ fn check_heads(
                 }
                 return Ok(CheckHeadsResult::Instantiate {
                     poly: poly.clone(),
-                    substitution_params: params.clone(),
+                    explicit_params: explicit_params.clone(),
+                    instantiation_node: lhs_ind.0,
                     src_template,
                     reason: edge_context.reason,
                     lhs_sub: target,
@@ -250,7 +248,7 @@ fn check_heads(
         return Ok(Done);
     } else if let &UInstantiateUni {
         target,
-        ref params,
+        ref explicit_params,
         src_template,
     } = &rhs.0
     {
@@ -261,7 +259,8 @@ fn check_heads(
                 }
                 return Ok(CheckHeadsResult::Instantiate {
                     poly: poly.clone(),
-                    substitution_params: params.clone(),
+                    explicit_params: explicit_params.clone(),
+                    instantiation_node: rhs_ind.0,
                     src_template,
                     reason: edge_context.reason,
                     lhs_sub,
@@ -279,10 +278,10 @@ fn check_heads(
             edge_context.bound_pairs.push((lhs_poly.loc, rhs_poly.loc));
             out.push((lhs_t, rhs_t, edge_context));
         }
-        (&VPolyHead(ref lhs_poly, lhs_t, _), _) => {
+        (&VPolyHead(ref _lhs_poly, lhs_t, _), _) => {
             out.push((lhs_t, rhs_ind, edge_context));
         }
-        (_, &UPolyHead(ref rhs_poly, rhs_t, _)) => {
+        (_, &UPolyHead(ref _rhs_poly, rhs_t, _)) => {
             out.push((lhs_ind, rhs_t, edge_context));
         }
 
@@ -337,8 +336,8 @@ fn check_heads(
         }
 
         (&VAbstract { ty: ty_ind1 }, &UAbstract { ty: ty_ind2 }) => {
-            let ty_def1 = &type_ctors[ty_ind1.0];
-            let ty_def2 = &type_ctors[ty_ind2.0];
+            let ty_def1 = type_ctors.get(ty_ind1.0).unwrap();
+            let _ty_def2 = type_ctors.get(ty_ind2.0).unwrap();
             if ty_ind1 == ty_ind2 {
                 if edge_context.scopelvl < ty_def1.scopelvl {
                     return Err(type_escape_error(ty_def1, lhs, rhs, edge_context.scopelvl));
@@ -367,7 +366,7 @@ pub struct InferenceVarData {
     pub src: HoleSrc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TypeNode {
     Var(InferenceVarData),
     Value(VTypeNode),
@@ -385,20 +384,7 @@ impl TypeNode {
         }
     }
 }
-impl ExtNodeDataTrait for TypeNode {
-    fn truncate(&mut self, i: TypeNodeInd) {
-        if let TypeNode::Value((VTypeHead::VInstantiateExist { params, .. }, ..)) = self {
-            params
-                .borrow_mut()
-                .retain(|_, (v, u)| (v.0 < i || v.0 == NONE) && (u.0 < i || u.0 == NONE));
-        }
-        if let TypeNode::Use((UTypeHead::UInstantiateUni { params, .. }, ..)) = self {
-            params
-                .borrow_mut()
-                .retain(|_, (v, u)| (v.0 < i || v.0 == NONE) && (u.0 < i || u.0 == NONE));
-        }
-    }
-}
+impl ExtNodeDataTrait for TypeNode {}
 
 /// Used to track the reason a flow edge was added so we can backtrack when printing errors
 #[derive(Debug, Clone, Copy)]
@@ -442,26 +428,31 @@ impl EdgeDataTrait<TypeNode> for TypeEdge {
     }
 }
 
+#[derive(Clone)]
 pub struct TypeCheckerCore {
     // Only public for instantiation.rs
     pub r: reachability::Reachability<TypeNode, TypeEdge>,
-    pub type_ctors: Vec<TypeCtor>,
+    pub type_ctors: im_rc::Vector<TypeCtor>,
     pub flowcount: u32,
     pub varcount: u32,
+    /// Cache of resolved instantiation params (explicit + inferred).
+    /// Stored here (not in type heads) so it gets properly rolled back with snapshots.
+    resolved_instantiation_params: HashMap<TypeNodeInd, HashMap<StringId, (Value, Use)>>,
 }
 impl TypeCheckerCore {
     pub fn new() -> Self {
         Self {
             r: Reachability::new(),
-            type_ctors: Vec::new(),
+            type_ctors: im_rc::Vector::new(),
             flowcount: 0,
             varcount: 0,
+            resolved_instantiation_params: HashMap::new(),
         }
     }
 
     pub fn add_type_ctor(&mut self, ty: TypeCtor) -> TypeCtorInd {
         let i = self.type_ctors.len();
-        self.type_ctors.push(ty);
+        self.type_ctors.push_back(ty);
         TypeCtorInd(i)
     }
     pub fn add_builtin_type(&mut self, name: StringId) -> TypeCtorInd {
@@ -540,7 +531,8 @@ impl TypeCheckerCore {
             CheckHeadsResult::Done => {}
             CheckHeadsResult::Instantiate {
                 poly,
-                substitution_params,
+                explicit_params,
+                instantiation_node,
                 src_template,
                 reason,
                 lhs_sub,
@@ -549,17 +541,23 @@ impl TypeCheckerCore {
                 // Domain expansion - for type parameters not already specified, substitute them
                 // with a new inference variable. The same inference variable will be used for
                 // all instantiations of that parameter with the same instantiation node.
-                let mut params_mut = substitution_params.borrow_mut();
-                for (name, _) in poly.params.iter().copied() {
-                    // println!("inserting var for {}", name.into_inner());
-                    params_mut
-                        .entry(name)
-                        .or_insert_with(|| self.var(HoleSrc::Instantiation(src_template, name), scopelvl));
-                }
-                drop(params_mut);
+                // The cache is stored in TypeCheckerCore so it rolls back properly with snapshots.
+                let params = match self.resolved_instantiation_params.get(&instantiation_node) {
+                    Some(p) => p.clone(),
+                    None => {
+                        let mut all = explicit_params;
+                        for (name, _) in poly.params.iter().copied() {
+                            // println!("inserting var for {}", name.into_inner());
+                            if !all.contains_key(&name) {
+                                all.insert(name, self.var(HoleSrc::Instantiation(src_template, name), scopelvl));
+                            }
+                        }
+                        self.resolved_instantiation_params.insert(instantiation_node, all.clone());
+                        all
+                    }
+                };
 
                 // Now do the actual instantiation
-                let params = substitution_params.borrow();
                 let mut ctx = InstantionContext::new(self, Substitutions::Type(&params), poly.loc);
 
                 // Functions can only be instantiated when they have no free variables,
@@ -652,15 +650,9 @@ impl TypeCheckerCore {
             self.new_use(UTypeHead::UAbstract { ty }, span, None),
         )
     }
+}
 
-    ////////////////////////////////////////////////////////////////////////////////
-    pub fn save(&mut self) {
-        self.r.save();
-    }
-    pub fn revert(&mut self) {
-        self.r.revert();
-    }
-    pub fn make_permanent(&mut self) {
-        self.r.make_permanent();
-    }
+fn _assert_clone() {
+    fn assert_clone<T: Clone>() {}
+    assert_clone::<TypeCheckerCore>();
 }
