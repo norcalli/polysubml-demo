@@ -7,12 +7,8 @@ edition = "2024"
 
 [dependencies]
 lalrpop-util = { version = "0.20.2", features = ["lexer"] }
-
-# The `console_error_panic_hook` crate provides better debugging of panics by
-# logging them with `console.error`. This is great for development, but requires
-# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
-# code size when deploying.
-lasso = "0.7.3"
+rpds = "1"
+ustr = "1"
 itertools = "0.14.0"
 
 [dev-dependencies]

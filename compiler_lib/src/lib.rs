@@ -16,8 +16,6 @@ mod type_errors;
 mod typeck;
 mod unwindmap;
 
-use lasso::Rodeo;
-
 use std::mem;
 
 use lalrpop_util::ParseError;
@@ -76,20 +74,17 @@ impl std::fmt::Display for CompilationResult {
 pub struct State {
     parser: ScriptParser,
     spans: SpanManager,
-    strings: lasso::Rodeo,
 
     checker: TypeckState,
     compiler: ModuleBuilder,
 }
 impl State {
     pub fn new() -> Self {
-        let mut strings = Rodeo::new();
-        let checker = TypeckState::new(&mut strings);
+        let checker = TypeckState::new();
 
         State {
             parser: ScriptParser::new(),
             spans: SpanManager::default(),
-            strings,
 
             checker,
             compiler: ModuleBuilder::new(),
@@ -100,16 +95,15 @@ impl State {
         let span_maker = self.spans.add_source(source.to_owned());
         let mut ctx = ast::ParserContext {
             span_maker,
-            strings: &mut self.strings,
         };
 
         let ast = self
             .parser
             .parse(&mut ctx, source)
             .map_err(|e| convert_parse_error(ctx.span_maker, e))?;
-        let _t = self.checker.check_script(&mut self.strings, &ast)?;
+        let _t = self.checker.check_script(&ast)?;
 
-        let mut ctx = codegen::Context(&mut self.compiler, &self.strings);
+        let mut ctx = codegen::Context(&mut self.compiler);
         let js_ast = codegen::compile_script(&mut ctx, &ast);
         Ok(js_ast.to_source())
     }
@@ -123,7 +117,7 @@ impl State {
     }
 
     pub fn reset(&mut self) {
-        mem::swap(&mut self.checker, &mut TypeckState::new(&mut self.strings));
+        mem::swap(&mut self.checker, &mut TypeckState::new());
         mem::swap(&mut self.compiler, &mut ModuleBuilder::new());
     }
 }

@@ -60,12 +60,12 @@ pub struct TypeckState {
 }
 impl TypeckState {
     #[allow(non_snake_case)]
-    pub fn new(strings: &mut lasso::Rodeo) -> Self {
+    pub fn new() -> Self {
         let mut core = TypeCheckerCore::new();
-        let TY_BOOL = core.add_builtin_type(strings.get_or_intern_static("bool"));
-        let TY_FLOAT = core.add_builtin_type(strings.get_or_intern_static("float"));
-        let TY_INT = core.add_builtin_type(strings.get_or_intern_static("int"));
-        let TY_STR = core.add_builtin_type(strings.get_or_intern_static("str"));
+        let TY_BOOL = core.add_builtin_type(ustr::ustr("bool"));
+        let TY_FLOAT = core.add_builtin_type(ustr::ustr("float"));
+        let TY_INT = core.add_builtin_type(ustr::ustr("int"));
+        let TY_STR = core.add_builtin_type(ustr::ustr("str"));
 
         let mut new = Self {
             core,
@@ -98,7 +98,7 @@ impl TypeckState {
         Ok(mat.with(&mut self.core).add_pattern(temp, &mut self.bindings))
     }
 
-    fn check_expr(&mut self, strings: &mut lasso::Rodeo, expr: &ast::SExpr, bound: Use) -> Result<()> {
+    fn check_expr(&mut self, expr: &ast::SExpr, bound: Use) -> Result<()> {
         use ast::Expr::*;
         match &expr.0 {
             Block(e) => {
@@ -106,14 +106,14 @@ impl TypeckState {
                 let mark = self.bindings.unwind_point();
 
                 for stmt in e.statements.iter() {
-                    self.check_statement(strings, stmt, false)?;
+                    self.check_statement(stmt, false)?;
                 }
 
-                self.check_expr(strings, &e.expr, bound)?;
+                self.check_expr(&e.expr, bound)?;
                 self.bindings.unwind(mark);
             }
             Call(e) => {
-                let arg_type = self.infer_expr(strings, &e.arg)?;
+                let arg_type = self.infer_expr(&e.arg)?;
 
                 let bound = self.core.new_use(
                     UFunc {
@@ -123,24 +123,24 @@ impl TypeckState {
                     expr.1,
                     None,
                 );
-                self.check_expr(strings, &e.func, bound)?;
+                self.check_expr(&e.func, bound)?;
             }
             FieldAccess(e) => {
                 let bound = self.core.obj_use(vec![(e.field.0, (bound, None, e.field.1))], e.field.1);
-                self.check_expr(strings, &e.expr, bound)?;
+                self.check_expr(&e.expr, bound)?;
             }
             FieldSet(e) => {
-                let rhs_type = self.infer_expr(strings, &e.value)?;
+                let rhs_type = self.infer_expr(&e.value)?;
                 let bound = self
                     .core
                     .obj_use(vec![(e.field.0, (bound, Some(rhs_type), e.field.1))], e.field.1);
-                self.check_expr(strings, &e.expr, bound)?;
+                self.check_expr(&e.expr, bound)?;
             }
             If(e) => {
                 let bool_use = self.core.simple_use(self.TY_BOOL, e.cond.1);
-                self.check_expr(strings, &e.cond.0, bool_use)?;
-                self.check_expr(strings, &e.then_expr, bound)?;
-                self.check_expr(strings, &e.else_expr, bound)?;
+                self.check_expr(&e.cond.0, bool_use)?;
+                self.check_expr(&e.then_expr, bound)?;
+                self.check_expr(&e.else_expr, bound)?;
             }
             InstantiateUni(e) => {
                 let mut params = HashMap::new();
@@ -156,18 +156,18 @@ impl TypeckState {
                     e.expr.1,
                     None,
                 );
-                self.check_expr(strings, &e.expr, bound)?;
+                self.check_expr(&e.expr, bound)?;
             }
             Loop(e) => {
                 let bound = self.core.case_use(
                     vec![
-                        (strings.get_or_intern_static("Break"), bound),
-                        (strings.get_or_intern_static("Continue"), self.core.top_use()),
+                        (ustr::ustr("Break"), bound),
+                        (ustr::ustr("Continue"), self.core.top_use()),
                     ],
                     None,
                     expr.1,
                 );
-                self.check_expr(strings, &e.body, bound)?;
+                self.check_expr(&e.body, bound)?;
             }
             Match(e) => {
                 let (ref match_expr, arg_span) = e.expr;
@@ -196,7 +196,7 @@ impl TypeckState {
                             let mark = self.bindings.unwind_point();
                             let pattern_bound = self.process_let_pattern(&*val_pat, true)?;
                             // Note: bound is bound for the result types, not the pattern
-                            self.check_expr(strings, rhs_expr, bound)?;
+                            self.check_expr(rhs_expr, bound)?;
                             case_type_pairs.push((tag.0, pattern_bound));
                             self.bindings.unwind(mark);
                         }
@@ -223,7 +223,7 @@ impl TypeckState {
                             let mark = self.bindings.unwind_point();
                             let pattern_bound = self.process_let_pattern(pattern, true)?;
                             // Note: bound is bound for the result types, not the pattern
-                            self.check_expr(strings, rhs_expr, bound)?;
+                            self.check_expr(rhs_expr, bound)?;
                             wildcard_type = Some(pattern_bound);
                             self.bindings.unwind(mark);
                         }
@@ -231,21 +231,21 @@ impl TypeckState {
                 }
 
                 let bound = self.core.case_use(case_type_pairs, wildcard_type, arg_span);
-                self.check_expr(strings, match_expr, bound)?;
+                self.check_expr(match_expr, bound)?;
             }
 
             // Cases that should be inferred instead
             BinOp(_) | Case(_) | FuncDef(_) | Literal(_) | InstantiateExist(_) | Record(_) | Typed(_) | Variable(_) => {
                 // Span is just an arbitrary span (usually that of the current expression) used
                 // to help users diagnose cause of a type error that doesn't go through any holes.
-                let t = self.infer_expr(strings, expr)?;
-                self.core.flow(strings, t, bound, expr.1, self.bindings.scopelvl)?;
+                let t = self.infer_expr(expr)?;
+                self.core.flow(t, bound, expr.1, self.bindings.scopelvl)?;
             }
         };
         Ok(())
     }
 
-    fn infer_expr(&mut self, strings: &mut lasso::Rodeo, expr: &ast::SExpr) -> Result<Value> {
+    fn infer_expr(&mut self, expr: &ast::SExpr) -> Result<Value> {
         use ast::Expr::*;
 
         match &expr.0 {
@@ -265,8 +265,8 @@ impl TypeckState {
                     }
                     None => (self.core.top_use(), self.core.top_use()),
                 };
-                self.check_expr(strings, &e.lhs, lhs_bound)?;
-                self.check_expr(strings, &e.rhs, rhs_bound)?;
+                self.check_expr(&e.lhs, lhs_bound)?;
+                self.check_expr(&e.rhs, rhs_bound)?;
 
                 let cls = match ret_class {
                     Bool => self.TY_BOOL,
@@ -283,15 +283,15 @@ impl TypeckState {
                 let mark = self.bindings.unwind_point();
 
                 for stmt in e.statements.iter() {
-                    self.check_statement(strings, stmt, false)?;
+                    self.check_statement(stmt, false)?;
                 }
 
-                let res = self.infer_expr(strings, &e.expr)?;
+                let res = self.infer_expr(&e.expr)?;
                 self.bindings.unwind(mark);
                 Ok(res)
             }
             Case(e) => {
-                let val_type = self.infer_expr(strings, &e.expr)?;
+                let val_type = self.infer_expr(&e.expr)?;
                 Ok(self.core.new_val(
                     VCase {
                         case: (e.tag.0, val_type),
@@ -314,7 +314,7 @@ impl TypeckState {
                 let func_type = mat.add_func_type(&parsed);
                 let ret_bound = mat.add_func_sig(parsed, &mut self.bindings);
 
-                self.check_expr(strings, &e.body, ret_bound)?;
+                self.check_expr(&e.body, ret_bound)?;
 
                 self.bindings.unwind(mark);
                 Ok(func_type)
@@ -324,9 +324,9 @@ impl TypeckState {
             If(e) => {
                 let (cond_expr, span) = (&e.cond.0, e.cond.1);
                 let bool_use = self.core.simple_use(self.TY_BOOL, span);
-                self.check_expr(strings, cond_expr, bool_use)?;
-                let res1 = self.infer_expr(strings, &e.then_expr)?;
-                let res2 = self.infer_expr(strings, &e.else_expr)?;
+                self.check_expr(cond_expr, bool_use)?;
+                let res1 = self.infer_expr(&e.then_expr)?;
+                let res2 = self.infer_expr(&e.else_expr)?;
                 if res1 == res2 {
                     Ok(res1)
                 } else {
@@ -343,7 +343,7 @@ impl TypeckState {
                     params.insert(name, self.parse_type_signature(sig)?);
                 }
 
-                let target = self.infer_expr(strings, &e.expr)?;
+                let target = self.infer_expr(&e.expr)?;
                 Ok(self.core.new_val(
                     VInstantiateExist {
                         params: Rc::new(RefCell::new(params)),
@@ -385,17 +385,17 @@ impl TypeckState {
                         let mut mat = TreeMaterializerState::new(self.bindings.scopelvl);
                         let (v, u) = mat.with(&mut self.core).add_type(temp);
 
-                        self.check_expr(strings, expr, u)?;
+                        self.check_expr(expr, u)?;
                         field_type_pairs.push((*name, (v, Some(u), *name_span)));
                     } else {
                         // For immutable fields, use the type annotation if one was supplied
                         // but do not create a hole (inference variable) if there wasn't,
                         let t = if let Some(ty) = type_annot {
                             let (v, u) = self.parse_type_signature(ty)?;
-                            self.check_expr(strings, expr, u)?;
+                            self.check_expr(expr, u)?;
                             v
                         } else {
-                            self.infer_expr(strings, expr)?
+                            self.infer_expr(expr)?
                         };
 
                         field_type_pairs.push((*name, (t, None, *name_span)));
@@ -406,7 +406,7 @@ impl TypeckState {
             }
             Typed(e) => {
                 let sig_type = self.parse_type_signature(&e.type_expr)?;
-                self.check_expr(strings, &e.expr, sig_type.1)?;
+                self.check_expr(&e.expr, sig_type.1)?;
                 Ok(sig_type.0)
             }
             Variable(e) => {
@@ -420,13 +420,13 @@ impl TypeckState {
             // Cases that have to be checked instead
             Call(_) | FieldAccess(_) | FieldSet(_) | Loop(_) | InstantiateUni(_) | Match(_) => {
                 let (v, u) = self.core.var(HoleSrc::CheckedExpr(expr.1), self.bindings.scopelvl);
-                self.check_expr(strings, expr, u)?;
+                self.check_expr(expr, u)?;
                 Ok(v)
             }
         }
     }
 
-    fn check_let_def(&mut self, strings: &mut lasso::Rodeo, lhs: &ast::LetPattern, expr: &ast::SExpr) -> Result<()> {
+    fn check_let_def(&mut self, lhs: &ast::LetPattern, expr: &ast::SExpr) -> Result<()> {
         // Check if left hand side is a simple assignment with no type annotation
         if let &ast::LetPattern::Var((Some(name), _), None) = lhs {
             // If lefthand side is a simple assignment, avoid adding an inference var
@@ -437,7 +437,7 @@ impl TypeckState {
             use ast::Expr::*;
             match &expr.0 {
                 FuncDef(..) | Literal(..) | Typed(..) | Variable(..) => {
-                    let ty = self.infer_expr(strings, expr)?;
+                    let ty = self.infer_expr(expr)?;
                     self.bindings.vars.insert(name, ty);
                     return Ok(());
                 }
@@ -453,14 +453,14 @@ impl TypeckState {
         // the rhs against it. Therefore, materializing the pattern is split into two calls.
         // The first merely returns the bound while the second below actually adds the pattern bindings.
         let bound = mat.with(&mut self.core).add_pattern_bound(&parsed);
-        self.check_expr(strings, expr, bound)?;
+        self.check_expr(expr, bound)?;
 
         // Now add the pattern bindings
         mat.with(&mut self.core).add_pattern(parsed, &mut self.bindings);
         Ok(())
     }
 
-    fn check_let_rec_defs(&mut self, strings: &mut lasso::Rodeo, defs: &Vec<ast::LetRecDefinition>) -> Result<()> {
+    fn check_let_rec_defs(&mut self, defs: &Vec<ast::LetRecDefinition>) -> Result<()> {
         // Important: Must use the same materializer state when materializing the outer and inner function types
         let mut mat = TreeMaterializerState::new(self.bindings.scopelvl);
 
@@ -496,7 +496,7 @@ impl TypeckState {
             let mark = self.bindings.unwind_point();
 
             let ret_bound = mat.with(&mut self.core).add_func_sig(parsed, &mut self.bindings);
-            self.check_expr(strings, body, ret_bound)?;
+            self.check_expr(body, ret_bound)?;
 
             self.bindings.unwind(mark);
         }
@@ -506,7 +506,6 @@ impl TypeckState {
 
     fn check_statement(
         &mut self,
-        strings: &mut lasso::Rodeo,
         def: &ast::Statement,
         allow_useless_exprs: bool,
     ) -> Result<()> {
@@ -530,24 +529,24 @@ impl TypeckState {
                     };
                 }
 
-                self.check_expr(strings, expr, self.core.top_use())?;
+                self.check_expr(expr, self.core.top_use())?;
             }
             LetDef((pattern, var_expr)) => {
-                self.check_let_def(strings, pattern, var_expr)?;
+                self.check_let_def(pattern, var_expr)?;
             }
             LetRecDef(defs) => {
-                self.check_let_rec_defs(strings, defs)?;
+                self.check_let_rec_defs(defs)?;
             }
             Println(exprs) => {
                 for expr in exprs {
-                    self.check_expr(strings, expr, self.core.top_use())?;
+                    self.check_expr(expr, self.core.top_use())?;
                 }
             }
         };
         Ok(())
     }
 
-    pub fn check_script(&mut self, strings: &mut lasso::Rodeo, parsed: &[ast::Statement]) -> Result<()> {
+    pub fn check_script(&mut self, parsed: &[ast::Statement]) -> Result<()> {
         // Tell type checker to start keeping track of changes to the type state so we can roll
         // back all the changes if the script contains an error.
         self.core.save();
@@ -556,7 +555,7 @@ impl TypeckState {
         let len = parsed.len();
         for (i, item) in parsed.iter().enumerate() {
             let is_last = i == len - 1;
-            if let Err(e) = self.check_statement(strings, item, is_last) {
+            if let Err(e) = self.check_statement(item, is_last) {
                 // println!("num type nodes {}", self.core.num_type_nodes());
 
                 // Roll back changes to the type state and bindings

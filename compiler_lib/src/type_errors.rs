@@ -55,7 +55,7 @@ impl PartialTypeError {
         Err(self.0)
     }
 
-    pub fn add_hole_int(&mut self, core: &TypeCheckerCore, strings: &mut lasso::Rodeo, pair: (Value, Use)) {
+    pub fn add_hole_int(&mut self, core: &TypeCheckerCore, pair: (Value, Use)) {
         // First follow the FlowReasons backwards to get a list of holes (inference variables) and
         // roots involved in the detected type contradiction.
         let mut seen = HashSet::new();
@@ -83,7 +83,7 @@ impl PartialTypeError {
                 Explicit(span) => self.0.push_span(span),
                 OptAscribe(span) => self.0.push_insert("", span, ": _"),
                 Instantiation((span, kind), name) => {
-                    let name = strings.resolve(&name);
+                    let name = name.as_str();
 
                     use InstantiateSourceKind::*;
                     let s = match kind {
@@ -137,7 +137,6 @@ fn be_a(s: &str) -> TMsg {
 }
 
 pub fn type_mismatch_err(
-    strings: &mut lasso::Rodeo,
     type_ctors: &[TypeCtor],
     lhs: &VTypeNode,
     rhs: &UTypeNode,
@@ -156,11 +155,11 @@ pub fn type_mismatch_err(
         VCase { .. } => be_a("variant"),
         VAbstract { ty, .. } => {
             let tycon = &type_ctors[ty.0];
-            let name = strings.resolve(&tycon.name);
+            let name = tycon.name.as_str();
             HaveTy(name.to_owned(), tycon.span)
         }
         // VAbstract { ty, .. } => &type_ctors[ty.0].debug,
-        VTypeVar(tv) => BeA(format!("type parameter {}", strings.resolve(&tv.name))),
+        VTypeVar(tv) => BeA(format!("type parameter {}", tv.name.as_str())),
         VDisjointIntersect(..) => be_a("intersection"),
     };
 
@@ -174,11 +173,11 @@ pub fn type_mismatch_err(
         UCase { .. } => be_a("variant"),
         UAbstract { ty, .. } => {
             let tycon = &type_ctors[ty.0];
-            let name = strings.resolve(&tycon.name);
+            let name = tycon.name.as_str();
             HaveTy(name.to_owned(), tycon.span)
         }
         // VAbstract { ty, .. } => &type_ctors[ty.0].debug,
-        UTypeVar(tv) => BeA(format!("type parameter {}", strings.resolve(&tv.name))),
+        UTypeVar(tv) => BeA(format!("type parameter {}", tv.name.as_str())),
         UDisjointUnion(..) => be_a("union"),
     };
 
@@ -247,7 +246,6 @@ pub fn immutable_field_err(lhs_span: Span, rhs_span: Span, name: &str) -> Partia
 }
 
 pub fn type_escape_error(
-    strings: &mut lasso::Rodeo,
     ty_ctor: &TypeCtor,
     lhs: &VTypeNode,
     rhs: &UTypeNode,
@@ -259,7 +257,7 @@ pub fn type_escape_error(
     parts.push(
         format!(
             "TypeError: Type {} defined here escapes its scope",
-            strings.resolve(&ty_ctor.name),
+            ty_ctor.name.as_str(),
         ),
         ty_ctor.span.unwrap(),
     );

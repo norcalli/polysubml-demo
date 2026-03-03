@@ -5,7 +5,7 @@ use lalrpop_util::ParseError;
 use super::ast; // super instead of self because lalrpop wraps this in an internal module
 use super::spans;
 
-grammar(ctx: &mut ast::ParserContext<'_, 'input>);
+grammar(ctx: &mut ast::ParserContext<'input>);
 
 extern {
     type Error = (&'static str, spans::Span);
@@ -22,7 +22,7 @@ match {
 
 
 StringIdent: &'input str = r"[A-Za-z_]\w*"=> <>;
-Ident: ast::StringId = StringIdent => ctx.strings.get_or_intern(<>);
+Ident: ast::StringId = StringIdent => ustr::ustr(<>);
 Tag: ast::StringId = "`" <Ident>;
 
 IntLiteral: String = {
@@ -103,7 +103,7 @@ CaseType: ast::TypeExpr = {
 
 SimpleType: ast::TypeExpr = {
     Ident => {
-        match ctx.strings.resolve(&<>) {
+        match <>.as_str() {
             "any" => ast::TypeExpr::Top,
             "never" => ast::TypeExpr::Bot,
             "_" => ast::TypeExpr::Hole,
@@ -118,7 +118,7 @@ SimpleType: ast::TypeExpr = {
 
 TupleType: ast::TypeExpr = {
     SepList<Spanned<SimpleType>, "*"> => {
-        ast::make_tuple_type(<>, &mut ctx.strings)
+        ast::make_tuple_type(<>)
     }
 }
 
@@ -227,7 +227,7 @@ VarOrLiteral: ast::Expr = {
         match s {
             "false" | "true" => ast::expr::literal(ast::Literal::Bool, (String::from(s), span)),
             _ => {
-                ast::expr::variable(ctx.strings.get_or_intern(s))
+                ast::expr::variable(ustr::ustr(s))
             }
         }
     },
@@ -359,7 +359,7 @@ SCompareExpr = Spanned<CompareExpr>;
 VarPatName: (Option<ast::StringId>, spans::Span) = {
     <Spanned<Ident>> => {
         let (name, span) = <>;
-        let name = if ctx.strings.resolve(&name) == "_" {None} else {Some(name)};
+        let name = if name.as_str() == "_" {None} else {Some(name)};
         (name, span)
     }
 }
@@ -375,7 +375,7 @@ RecordLetPattern = {
 }
 TupleOrParensLetPattern: ast::LetPattern = {
     Spanned<("(" <SepList<Spanned<LetPattern>, ",">> ")")> => {
-        ast::make_tuple_pattern(<>, &mut ctx.strings)
+        ast::make_tuple_pattern(<>)
     }
 }
 
@@ -403,8 +403,8 @@ LetPattern: ast::LetPattern = {
 // Top level expressions /////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 CompareOrTupleExpr: ast::Expr = {
-    SepList<SCompareExpr, ","> => 
-        ast::make_tuple_expr(<>, &mut ctx.strings)
+    SepList<SCompareExpr, ","> =>
+        ast::make_tuple_expr(<>)
 }
 
 

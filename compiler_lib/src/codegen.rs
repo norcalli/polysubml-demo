@@ -78,7 +78,7 @@ impl ModuleBuilder {
         js_name
     }
 }
-pub struct Context<'a>(pub &'a mut ModuleBuilder, pub &'a lasso::Rodeo);
+pub struct Context<'a>(pub &'a mut ModuleBuilder);
 impl<'a> Context<'a> {
     fn ml_scope<T>(&mut self, cb: impl FnOnce(&mut Self) -> T) -> T {
         let n = self.bindings.unwind_point();
@@ -101,12 +101,12 @@ impl<'a> Context<'a> {
         res
     }
 
-    fn get(&self, id: StringId) -> &'a str {
-        self.1.resolve(&id)
+    fn get(&self, id: StringId) -> &'static str {
+        id.as_str()
     }
 
     fn get_new(&self, id: StringId) -> String {
-        self.1.resolve(&id).to_owned()
+        id.as_str().to_owned()
     }
 }
 impl<'a> core::ops::Deref for Context<'a> {

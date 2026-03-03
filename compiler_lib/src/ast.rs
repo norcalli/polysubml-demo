@@ -7,11 +7,10 @@ use crate::spans::Span;
 use crate::spans::SpanMaker;
 use crate::spans::Spanned;
 
-pub struct ParserContext<'a, 'input> {
+pub struct ParserContext<'input> {
     pub span_maker: SpanMaker<'input>,
-    pub strings: &'a mut lasso::Rodeo,
 }
-pub type StringId = lasso::Spur;
+pub type StringId = ustr::Ustr;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -114,45 +113,44 @@ pub enum Statement {
 
 fn enumerate_tuple_fields<T, R>(
     vals: impl IntoIterator<Item = (T, Span)>,
-    strings: &mut lasso::Rodeo,
     mut make_field: impl FnMut(Spanned<StringId>, T) -> R,
 ) -> Vec<R> {
     vals.into_iter()
         .enumerate()
         .map(|(i, (val, span))| {
-            let name = strings.get_or_intern(&format!("_{}", i));
+            let name = ustr::ustr(&format!("_{}", i));
             make_field((name, span), val)
         })
         .collect()
 }
 
 // TODO, cleanup
-pub fn make_tuple_expr(mut vals: Vec<SExpr>, strings: &mut lasso::Rodeo) -> Expr {
+pub fn make_tuple_expr(mut vals: Vec<SExpr>) -> Expr {
     if vals.len() <= 1 {
         return vals.pop().unwrap().0;
     }
 
     // Tuple
-    let fields = enumerate_tuple_fields(vals, strings, |name, val| (name, Box::new((val, name.1)), false, None));
+    let fields = enumerate_tuple_fields(vals, |name, val| (name, Box::new((val, name.1)), false, None));
     expr::record(fields)
 }
 
-pub fn make_tuple_pattern(vals: Spanned<Vec<Spanned<LetPattern>>>, strings: &mut lasso::Rodeo) -> LetPattern {
+pub fn make_tuple_pattern(vals: Spanned<Vec<Spanned<LetPattern>>>) -> LetPattern {
     let (mut vals, full_span) = vals;
     if vals.len() <= 1 {
         return vals.pop().unwrap().0;
     }
 
-    let fields = enumerate_tuple_fields(vals, strings, |name, val| (name, Box::new(val)));
+    let fields = enumerate_tuple_fields(vals, |name, val| (name, Box::new(val)));
     LetPattern::Record(((vec![], fields), full_span))
 }
 
-pub fn make_tuple_type(mut vals: Vec<STypeExpr>, strings: &mut lasso::Rodeo) -> TypeExpr {
+pub fn make_tuple_type(mut vals: Vec<STypeExpr>) -> TypeExpr {
     if vals.len() <= 1 {
         return vals.pop().unwrap().0;
     }
 
-    let fields = enumerate_tuple_fields(vals, strings, |name, val| (name, FieldTypeDecl::Imm((val, name.1))));
+    let fields = enumerate_tuple_fields(vals, |name, val| (name, FieldTypeDecl::Imm((val, name.1))));
     TypeExpr::Record(fields)
 }
 

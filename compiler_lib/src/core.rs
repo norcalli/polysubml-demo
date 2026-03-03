@@ -154,7 +154,6 @@ enum CheckHeadsResult {
 }
 
 fn check_heads(
-    strings: &mut lasso::Rodeo,
     type_ctors: &[TypeCtor],
     lhs_ind: Value,
     lhs: &VTypeNode,
@@ -312,11 +311,11 @@ fn check_heads(
                             // Contravariant
                             out.push((rhs_w, lhs_w, edge_context.flip()));
                         } else {
-                            return Err(immutable_field_err(lhs_span, rhs_span, strings.resolve(&name)));
+                            return Err(immutable_field_err(lhs_span, rhs_span, name.as_str()));
                         }
                     }
                 } else {
-                    return Err(missing_field_err(lhs.1, rhs_span, strings.resolve(&name)));
+                    return Err(missing_field_err(lhs.1, rhs_span, name.as_str()));
                 }
             }
         }
@@ -333,7 +332,7 @@ fn check_heads(
             } else if let Some(rhs2) = wildcard {
                 out.push((lhs_ind, rhs2, edge_context));
             } else {
-                return Err(unhandled_variant_err(lhs, rhs, strings.resolve(&name)));
+                return Err(unhandled_variant_err(lhs, rhs, name.as_str()));
             }
         }
 
@@ -342,21 +341,21 @@ fn check_heads(
             let ty_def2 = &type_ctors[ty_ind2.0];
             if ty_ind1 == ty_ind2 {
                 if edge_context.scopelvl < ty_def1.scopelvl {
-                    return Err(type_escape_error(strings, ty_def1, lhs, rhs, edge_context.scopelvl));
+                    return Err(type_escape_error(ty_def1, lhs, rhs, edge_context.scopelvl));
                 }
             } else {
-                return Err(type_mismatch_err(strings, type_ctors, lhs, rhs));
+                return Err(type_mismatch_err(type_ctors, lhs, rhs));
             }
         }
 
         (&VTypeVar(tv1), &UTypeVar(tv2)) => {
             if tv1.name != tv2.name || !edge_context.bound_pairs.get(tv1.loc, tv2.loc) {
-                return Err(type_mismatch_err(strings, type_ctors, lhs, rhs));
+                return Err(type_mismatch_err(type_ctors, lhs, rhs));
             }
         }
 
         _ => {
-            return Err(type_mismatch_err(strings, type_ctors, lhs, rhs));
+            return Err(type_mismatch_err(type_ctors, lhs, rhs));
         }
     };
     Ok(Done)
@@ -483,7 +482,6 @@ impl TypeCheckerCore {
 
     pub fn flow(
         &mut self,
-        strings: &mut lasso::Rodeo,
         lhs: Value,
         rhs: Use,
         expl_span: Span,
@@ -510,7 +508,6 @@ impl TypeCheckerCore {
                         let rhs = Use(rhs);
 
                         let res = check_heads(
-                            strings,
                             &self.type_ctors,
                             lhs,
                             lhs_head,
@@ -522,7 +519,7 @@ impl TypeCheckerCore {
                         let res = match res {
                             Ok(v) => v,
                             Err(mut e) => {
-                                e.add_hole_int(self, strings, (lhs, rhs));
+                                e.add_hole_int(self, (lhs, rhs));
                                 return e.into();
                             }
                         };
