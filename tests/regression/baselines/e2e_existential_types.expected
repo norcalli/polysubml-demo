@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = true ? {'a': 5n, 'b': (p0, s0={}) => p0+1n} : {'a': 10n, 'b': (p0, s0={}) => p0*2n}, $.v1 = $.v0.a, $.v2 = $.v0.b, p.println(($.v2($.v1))), p.println(($.v2($.v2($.v1)))), $.v3 = false ? {'val': "hello", 'show': (p0, s0={}) => p0+"!"} : {'val': "world", 'show': (p0, s0={}) => p0+"?"}, $.v4 = $.v3.val, $.v5 = $.v3.show, p.println(($.v5($.v4))), p.println(($.v5($.v5($.v4)))), void 0

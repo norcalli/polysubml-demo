@@ -1,0 +1,9 @@
+ERROR
+TypeError: Repeated instantiation of nested polymorphic type requires intervening type annotation:
+// This should fail according to the README
+let pair = ((make_pair 123): <type here>) "bar";
+           +               ++++++++++++++        
+Note: Type mismatch was detected starting from this expression:
+// This should fail according to the README
+let pair = (make_pair 123) "bar";
+            ^~~~~~~~~             

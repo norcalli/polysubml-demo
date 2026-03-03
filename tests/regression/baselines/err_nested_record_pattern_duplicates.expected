@@ -1,0 +1,5 @@
+ERROR
+SyntaxError: Invalid wildcard match pattern
+match {a = {b = {c = 1}}} with
+  | {a = {b = {c = x}; b = y}} -> x + y  // 'b' appears twice
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~                                

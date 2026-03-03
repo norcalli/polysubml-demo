@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = (p0, s0={}) => p0, $.v1 = {'value': 42n, 'transform': (p0, s0={}) => p0+1n}, $.v2 = $.v1.value, $.v3 = $.v1.transform, $.v4 = $.v0($.v2), void 0

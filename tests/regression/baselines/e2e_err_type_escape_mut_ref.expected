@@ -1,0 +1,25 @@
+ERROR
+TypeError: Type t defined here escapes its scope
+// a value of a different type than what b expects.
+let ref = {mut v=`None 0};
+let {type t; a: t; b: t->t} = {a=3; b=fun x->x+1};
+          ^                                        
+ref.v <- `Some a;
+Note: A value of this type originates here:
+// a value of a different type than what b expects.
+let ref = {mut v=`None 0};
+let {type t; a: t; b: t->t} = {a=3; b=fun x->x+1};
+                ^                                  
+ref.v <- `Some a;
+and is consumed here after escaping the defining scope:
+// a value of a different type than what b expects.
+let ref = {mut v=`None 0};
+let {type t; a: t; b: t->t} = {a=3; b=fun x->x+1};
+                      ^                            
+ref.v <- `Some a;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// using `b` on the retrieved value is unsound - ref could hold
+// a value of a different type than what b expects.
+let ref: _ = {mut v=`None 0};
+       +++                    
+let {type t; a: t; b: t->t} = {a=3; b=fun x->x+1};

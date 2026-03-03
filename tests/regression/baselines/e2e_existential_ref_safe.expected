@@ -1,0 +1,2 @@
+SUCCESS
+$.t0 = {'a': 3n, 'b': (p0, s0={}) => p0+1n}, $.v1 = $.t0.a, $.v2 = $.t0.b, $.v3 = loop((_, _2={}) => ({'$tag': "Break", '$val': {'v': {'$tag': "None", '$val': 0n}}})), $.v3.v = {'$tag': "Some", '$val': $.v1}, $.t5 = $.v3.v, $.t5.$tag==="Some" ? ($.v6 = $.t5.$val, $.v2($.v6)) : 0n

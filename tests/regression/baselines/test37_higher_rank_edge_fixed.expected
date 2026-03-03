@@ -1,0 +1,20 @@
+ERROR
+TypeError: Value is required to be a function here:
+let apply_to_both = fun f -> fun pair -> (
+    let (a, b) = pair;
+    (f a, f b)
+          ^~~  
+);
+However, that value may be a record originating here:
+// This should work - id function is polymorphic enough
+let id = fun (type t) (x: t): t -> x;
+let result1 = apply_to_both id (42, "hello");
+                               ^~~~~~~~~~~~~  
+print result1;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Test 37: Higher-rank type inference edge cases (fixed)
+// Test without explicit higher-rank annotation first
+let apply_to_both = fun (f: _) -> fun pair -> (
+                        + ++++                  
+    let (a, b) = pair;
+    (f a, f b)

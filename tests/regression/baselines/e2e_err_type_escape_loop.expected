@@ -1,0 +1,26 @@
+ERROR
+TypeError: Type t defined here escapes its scope
+  x.v <- t;
+  let {type t; a: t; b: t->t} = h;
+            ^                      
+  print (match x.t <- `Some a with
+  | `None _ -> "missing"
+Note: A value of this type originates here:
+  x.v <- t;
+  let {type t; a: t; b: t->t} = h;
+                  ^                
+  print (match x.t <- `Some a with
+  | `None _ -> "missing"
+and is consumed here after escaping the defining scope:
+  x.v <- t;
+  let {type t; a: t; b: t->t} = h;
+                        ^          
+  print (match x.t <- `Some a with
+  | `None _ -> "missing"
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Each iteration unpacks a different existential type, so applying
+// b to a value from a *different* iteration's existential is unsound.
+let x = {mut v=`None 0; mut t: _=`None 0};
+                             +++           
+x.v <- `Some (x.v, {a=0; b=fun x->x+1});
+x.v <- `Some (x.v, {a=0.2; b=fun x->x+.9.1});

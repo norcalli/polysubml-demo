@@ -1,0 +1,13 @@
+ERROR
+TypeError: Value is required to be a function here:
+// Test that a b c is parsed as a (b c), not (a b) c
+let apply_to = fun x -> fun f -> f x;
+print apply_to 5 f; // Should be apply_to 5 (f), which is (fun f -> f 5) f = f 5 = 6
+               ^~~                                                                   
+// Test more complex case
+However, that value may have type int originating here:
+// Test that a b c is parsed as a (b c), not (a b) c
+let apply_to = fun x -> fun f -> f x;
+print apply_to 5 f; // Should be apply_to 5 (f), which is (fun f -> f 5) f = f 5 = 6
+               ^                                                                     
+// Test more complex case

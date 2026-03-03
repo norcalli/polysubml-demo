@@ -1,0 +1,16 @@
+ERROR
+TypeError: Value is required to be a function here:
+// Test with explicit parentheses to verify
+print f (g 5);  // Should be same as above
+print (f g) 5;  // This should cause a type error since f g tries to apply f to g
+      ^~~~~~~                                                                     
+However, that value may have type int originating here:
+// Test that a b c is parsed as a (b c), not (a b) c
+let f = fun x -> x + 10;
+                 ^~~~~~  
+let g = fun x -> x * 2;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Test that a b c is parsed as a (b c), not (a b) c
+let f = fun x: _ -> x + 10;
+             +++            
+let g = fun x -> x * 2;

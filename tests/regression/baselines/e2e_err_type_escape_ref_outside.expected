@@ -1,0 +1,25 @@
+ERROR
+TypeError: Type t defined here escapes its scope
+// the existential, but ref.v is still mutable and outside the
+// type's scope.
+let {type t; a: t; b: t->t; ref: _} = {a=3; b=fun x->x+1; ref={mut v=`None 0}};
+          ^                                                                     
+ref.v <- `Some a;
+Note: A value of this type originates here:
+// the existential, but ref.v is still mutable and outside the
+// type's scope.
+let {type t; a: t; b: t->t; ref: _} = {a=3; b=fun x->x+1; ref={mut v=`None 0}};
+                ^                                                               
+ref.v <- `Some a;
+and is consumed here after escaping the defining scope:
+// the existential, but ref.v is still mutable and outside the
+// type's scope.
+let {type t; a: t; b: t->t; ref: _} = {a=3; b=fun x->x+1; ref={mut v=`None 0}};
+                      ^                                                         
+ref.v <- `Some a;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// the existential, but ref.v is still mutable and outside the
+// type's scope.
+let {type t; a: t; b: t->t; ref: _} = {a=3; b=fun x->x+1; ref={mut v=`None 0}};
+                                 ^                                              
+ref.v <- `Some a;

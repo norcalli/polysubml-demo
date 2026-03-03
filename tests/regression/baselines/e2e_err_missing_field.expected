@@ -1,0 +1,19 @@
+ERROR
+TypeError: Missing field z
+Note: Field z is accessed here:
+// Exercises: type_errors.rs (missing_field_err), core.rs (record field HashMap)
+let r = {x=1; y=2};
+r.z
+ ^~ 
+But the record is defined without that field here:
+// E2E error: accessing nonexistent field
+// Exercises: type_errors.rs (missing_field_err), core.rs (record field HashMap)
+let r = {x=1; y=2};
+        ^~~~~~~~~~  
+r.z
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// E2E error: accessing nonexistent field
+// Exercises: type_errors.rs (missing_field_err), core.rs (record field HashMap)
+let r: _ = {x=1; y=2};
+     +++               
+r.z

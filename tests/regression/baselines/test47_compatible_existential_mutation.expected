@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'value': 42n, 'transform': (p0, s0={}) => p0+1n}, $.v1 = {'value': 100n, 'transform': (p0, s0={}) => p0*2n}, $.v2 = true ? $.v0 : $.v1, $.v4 = ($.t3 = $.v2.value, $.v2.value = 50n, $.t3), p.println(($.v4)), p.println(($.v2.value)), $.v5 = $.v2.value, $.v6 = $.v2.transform, $.v7 = $.v6($.v5), p.println(($.v7)), void 0

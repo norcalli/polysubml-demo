@@ -1,0 +1,17 @@
+ERROR
+TypeError: Missing field c
+Note: Field c is accessed here:
+let r = get_record true;
+print r.c
+       ^~ 
+But the record is defined without that field here:
+        {a=1; b=2; c=3}
+    else
+        {a=4; b=5; d=6};
+        ^~~~~~~~~~~~~~~  
+let r = get_record true;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+        {a=4; b=5; d=6};
+let r: _ = get_record true;
+     +++                    
+print r.c

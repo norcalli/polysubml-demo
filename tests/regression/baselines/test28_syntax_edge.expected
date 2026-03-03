@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = 5n+10n, p.println(""), p.println("\"quotes\" and 'apostrophes'"), p.println("newline \n tab \t"), p.println(0n), p.println((-42n)), p.println(1e10), p.println((-3.14e-2)), void 0

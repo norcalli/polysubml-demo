@@ -1,0 +1,9 @@
+ERROR
+SyntaxError: Unexpected token ;
+Note: expected tokens: ["in"]
+Parse error occurred here:
+// Test 6: Nested function type inference
+let outer = fun x ->
+    let inner = fun y -> x + y;
+                              ^ 
+    inner;

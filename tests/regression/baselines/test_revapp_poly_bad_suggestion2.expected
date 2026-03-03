@@ -1,0 +1,16 @@
+ERROR
+TypeError: Value is required to have type str here:
+let f = fun (type t) (x: t): t -> x;
+let g = fun {}: (type t. t -> t) -> f;
+let _: str = 42 |> (g {});
+       ^~~                 
+However, that value may have type int originating here:
+let f = fun (type t) (x: t): t -> x;
+let g = fun {}: (type t. t -> t) -> f;
+let _: str = 42 |> (g {});
+             ^~            
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+let f = fun (type t) (x: t): t -> x;
+let g = fun {}: (type t. t -> t) -> f;
+let _: str = 42 |> (g {})[t=_];
+                         +++++  

@@ -1,0 +1,18 @@
+ERROR
+TypeError: Value is required to have type str here:
+// Test 46: Mutation access with existential types
+let container1 = {mut value = 42; transform = fun x -> x + 1};
+let container2 = {mut value = "hello"; transform = fun x -> x ^ " world"};
+                                                            ^              
+let mixed = if true then container1 else container2;
+However, that value may have type int originating here:
+// Can we mutate the original mixed record directly?
+let old = mixed.value <- 999;
+                         ^~~  
+print old;
+print mixed.value;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+let container2 = {mut value = "hello"; transform = fun x -> x ^ " world"};
+let mixed: _ = if true then container1 else container2;
+         +++                                            
+// Can we mutate the original mixed record directly?

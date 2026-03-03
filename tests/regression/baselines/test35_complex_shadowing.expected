@@ -1,0 +1,34 @@
+ERROR
+TypeError: Value is required to have type a here:
+            let result: a = z;
+            // Can we access the outer 'a' via x? This should fail
+            let bad: a = x;
+                     ^      
+            result
+        );
+Where a is the abstract type defined here:
+let multi_level = fun (type a) (x: a) ->
+    fun (type b) (y: b) ->
+        fun (type a) (z: a) -> (  // Shadow the outer 'a'
+                  ^                                       
+            // Which 'a' does this refer to?
+            let result: a = z;
+However, that value may have type a originating here:
+// Test 35: Complex type variable shadowing scenarios
+let multi_level = fun (type a) (x: a) ->
+                                   ^     
+    fun (type b) (y: b) ->
+        fun (type a) (z: a) -> (  // Shadow the outer 'a'
+Where a is the abstract type defined here:
+// Test 35: Complex type variable shadowing scenarios
+let multi_level = fun (type a) (x: a) ->
+                            ^            
+    fun (type b) (y: b) ->
+        fun (type a) (z: a) -> (  // Shadow the outer 'a'
+Note: Type mismatch was detected starting from this expression:
+            let result: a = z;
+            // Can we access the outer 'a' via x? This should fail
+            let bad: a = x;
+                         ^  
+            result
+        );

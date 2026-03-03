@@ -1,0 +1,16 @@
+ERROR
+TypeError: Value is required to have type int here:
+// but the result is added to an int, requiring float + int.
+let f = fun (type t) (x: t) : t -> x;
+let _ = 1 + f 3.2
+            ^~~~~ 
+However, that value may have type float originating here:
+// but the result is added to an int, requiring float + int.
+let f = fun (type t) (x: t) : t -> x;
+let _ = 1 + f 3.2
+              ^~~ 
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// but the result is added to an int, requiring float + int.
+let f = fun (type t) (x: t) : t -> x;
+let _ = 1 + f[t=_] 3.2
+             +++++     

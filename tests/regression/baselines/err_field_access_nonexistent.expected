@@ -1,0 +1,16 @@
+ERROR
+TypeError: Missing field z
+Note: Field z is accessed here:
+let r = {x = 1; y = 2};
+r.z
+ ^~ 
+But the record is defined without that field here:
+// Should produce clear error about missing field
+let r = {x = 1; y = 2};
+        ^~~~~~~~~~~~~~  
+r.z
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Should produce clear error about missing field
+let r: _ = {x = 1; y = 2};
+     +++                   
+r.z

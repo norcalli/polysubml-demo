@@ -1,0 +1,16 @@
+ERROR
+TypeError: Can't set immutable field x.
+Note: Field is required to be mutable here:
+let r = {x = 1; y = 2};
+r.x <- 5
+ ^~      
+But the record is defined with that field immutable here:
+// Should produce error about field not being mutable
+let r = {x = 1; y = 2};
+         ^              
+r.x <- 5
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Should produce error about field not being mutable
+let r: _ = {x = 1; y = 2};
+     +++                   
+r.x <- 5

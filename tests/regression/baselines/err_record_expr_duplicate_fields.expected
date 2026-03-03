@@ -1,0 +1,9 @@
+ERROR
+SyntaxError: Repeated field name
+// Should produce error about duplicate field names
+{x = 1; y = 2; x = 3}
+               ^      
+Note: Field was already defined here
+// Should produce error about duplicate field names
+{x = 1; y = 2; x = 3}
+ ^                    

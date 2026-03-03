@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = 42n+1n, $.v1 = 5n+3n, $.v2 = 6n+2n, p.println(($.v1), ($.v2)), $.v3 = 5n*2n, $.v4 = 7n*3n, p.println(($.v3), ($.v4)), void 0

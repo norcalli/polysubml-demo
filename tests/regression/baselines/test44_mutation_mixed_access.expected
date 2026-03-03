@@ -1,0 +1,16 @@
+ERROR
+TypeError: Value is required to have type int here:
+// Can we do arithmetic on it?
+print value + 1;
+      ^~~~~      
+However, that value may have type t originating here:
+// Test 44: Accessing mixed mutable container
+let create_mutable_container = fun (type t) (initial: t) -> (
+                                                      ^       
+    let cell = {mut value = initial};
+    let setter = fun new_value -> cell.value <- new_value;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+let int_container = create_mutable_container 42;
+let str_container: _ = create_mutable_container "hello";
+                 +++                                     
+let mixed = if true then int_container else str_container;

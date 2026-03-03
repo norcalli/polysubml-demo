@@ -1,0 +1,8 @@
+ERROR
+SyntaxError: Unexpected token let
+Note: expected tokens: ["(", "*", ".", ";", "[", "`", "begin", "{", "|", "|>", r#"\"[^\\\\\"\\n\\r]*(?:\\\\[tn'\"\\\\][^\\\\\"\\n\\r]*)*\""#, r#"-?(?:0|[1-9][0-9]*)[eE]-?[0-9]+"#, r#"-?(?:0|[1-9][0-9]*)\\.[0-9]*(?:[eE]-?[0-9]+)?"#, r#"-?(?:[0-9]+)"#, r#"[<>]=?\\.?|[!=]="#, r#"[A-Za-z_]\\w*"#, r#"[\\*/%]\\.?"#, r#"[\\+\\-]\\.?|\\^"#]
+Parse error occurred here:
+// This should be valid, but let's test a case where it's invalid:
+let test_tuple = match (1, 2) with
+^~~                                
+  | (x, x) -> x  // This should error - x bound twice in same pattern

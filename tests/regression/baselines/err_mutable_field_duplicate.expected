@@ -1,0 +1,7 @@
+ERROR
+SyntaxError: Unexpected token mut
+Note: expected tokens: ["(", "`", "begin", "{", r#"\"[^\\\\\"\\n\\r]*(?:\\\\[tn'\"\\\\][^\\\\\"\\n\\r]*)*\""#, r#"-?(?:0|[1-9][0-9]*)[eE]-?[0-9]+"#, r#"-?(?:0|[1-9][0-9]*)\\.[0-9]*(?:[eE]-?[0-9]+)?"#, r#"-?(?:[0-9]+)"#, r#"[A-Za-z_]\\w*"#]
+Parse error occurred here:
+// Should catch duplicate mutable field definitions
+{mut x = 1, mut x = 2}
+            ^~~        

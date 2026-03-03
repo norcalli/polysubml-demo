@@ -1,0 +1,17 @@
+ERROR
+TypeError: Value is required to be a function here:
+// Test 40: Higher-rank types with explicit instantiation
+let apply_id_to_both = fun (f: type t. t -> t) -> fun pair -> (
+                               ^~~~~~~~~~~~~~                   
+    let (a, b) = pair;
+    (f a, f b)
+However, that value may be a record originating here:
+// Try explicit instantiation as suggested
+let result1 = apply_id_to_both id[] (42, "hello");
+                                    ^~~~~~~~~~~~~  
+print result1;
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Try explicit instantiation as suggested
+let result1 = apply_id_to_both id[t=_] (42, "hello");
+                                  +++                 
+print result1;

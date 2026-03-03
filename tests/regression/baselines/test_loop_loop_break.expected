@@ -1,0 +1,2 @@
+SUCCESS
+loop((_, _2={}) => loop((_, _2={}) => ({'$tag': "Break", '$val': {'$tag': "Break", '$val': 0n}})))

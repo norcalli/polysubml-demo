@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'$tag': "Circle", '$val': {'radius': 5.0}}, $.v5 = $.v0.$tag==="Circle" ? ($.t1 = $.v0.$val, $.v2 = $.t1.radius, p.println("found circle with radius", ($.v2)), $.v2*$.v2*3.14159) : ($.t3 = $.v0.$val, $.v4 = $.t3.side, p.println("found square with side", ($.v4)), $.v4*$.v4), p.println("area:", ($.v5)), void 0

@@ -1,0 +1,11 @@
+ERROR
+TypeError: Value is required to have type float here:
+let r = {a=1; b=fun x->x+1; c=1.2; d=fun x->x+.2.1};
+let {type t; a: t; b: t->t} = r;
+let _ = 4 +. 3
+        ^      
+However, that value may have type int originating here:
+let r = {a=1; b=fun x->x+1; c=1.2; d=fun x->x+.2.1};
+let {type t; a: t; b: t->t} = r;
+let _ = 4 +. 3
+        ^      

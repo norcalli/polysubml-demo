@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'$tag': "Circle", '$val': {'radius': 5.0}}, $.v1 = {'$tag': "Rectangle", '$val': {'width': 3.0, 'height': 4.0}}, $.v2 = {'$tag': "Square", '$val': {'side': 2.0}}, $.v3 = (p0, s0={}) => p0.$tag==="Circle" ? (s0.t0 = p0.$val, s0.v1 = s0.t0.radius, s0.v1*s0.v1*3.14159) : p0.$tag==="Rectangle" ? (s0.t2 = p0.$val, s0.v3 = s0.t2.width, s0.v4 = s0.t2.height, s0.v3*s0.v4) : (s0.t5 = p0.$val, s0.v6 = s0.t5.side, s0.v6*s0.v6), p.println(($.v3($.v0))), p.println(($.v3($.v1))), p.println(($.v3($.v2))), void 0

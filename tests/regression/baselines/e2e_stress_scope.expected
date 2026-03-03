@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = 1n+1n, $.v1 = $.v0*3n, p.println(($.v1)), $.v2 = 10n+20n, p.println(($.v2)), p.println((1n+2n+3n+4n+5n+6n+7n+8n+9n+10n)), $.v3 = (p0, s0={}) => p0+100n, $.v4 = (p0, s0={}) => p0+50n+100n, p.println(($.v3(1n))), p.println(($.v4(1n))), $.v6 = ($.v5 = (p0, s0={}) => p0<=0n ? 0n : p0+$.v5(p0- 1n), $.v5(10n)), p.println(($.v6)), void 0

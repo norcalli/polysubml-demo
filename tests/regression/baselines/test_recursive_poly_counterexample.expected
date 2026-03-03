@@ -1,0 +1,21 @@
+ERROR
+TypeError: Value is required to be a function here:
+  let j: type A. any -> any -> any -> A = x.j;
+  let k = {
+    mut x: type A. any -> type A as B. any -> rec u=any -> A | B | u = j
+                                                    ^~~~~~~~~~~~~~~~     
+  };
+  // This line compiles fine due to the explicit type annotation.
+However, that value may be a type parameter A originating here:
+let _ = fun x -> (
+  let j: type A. any -> any -> any -> A = x.j;
+                                      ^        
+  let k = {
+    mut x: type A. any -> type A as B. any -> rec u=any -> A | B | u = j
+Note: Type mismatch was detected starting from this expression:
+  let j: type A. any -> any -> any -> A = x.j;
+  let k = {
+    mut x: type A. any -> type A as B. any -> rec u=any -> A | B | u = j
+                                                                       ^ 
+  };
+  // This line compiles fine due to the explicit type annotation.

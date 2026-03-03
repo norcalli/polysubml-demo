@@ -1,0 +1,16 @@
+ERROR
+TypeError: Value is required to have type int here:
+// What about if we try arithmetic on it?
+print mixed.value + 1;
+      ^~~~~~~~~~~      
+However, that value may have type t originating here:
+// Test 34: Accessing mixed container values
+let create_container = fun (type t) (x: t) -> (
+                                        ^       
+    let getter = fun _ -> x;
+    {value = x; get = getter}
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+let container2 = create_container "hello";
+let mixed: _ = if true then container1 else container2;
+         +++                                            
+// What type is mixed.value?

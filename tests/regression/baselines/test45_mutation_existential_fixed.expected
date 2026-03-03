@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'value': 42n, 'transform': (p0, s0={}) => p0+1n}, $.v1 = {'value': "hello", 'transform': (p0, s0={}) => p0+" world"}, $.v2 = true ? $.v0 : $.v1, $.v3 = $.v2.value, $.v4 = $.v2.transform, p.println(($.v3)), void 0

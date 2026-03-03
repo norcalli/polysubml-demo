@@ -1,0 +1,8 @@
+ERROR
+SyntaxError: Unexpected token mut
+Note: expected tokens: ["type", "}", r#"[A-Za-z_]\\w*"#]
+Parse error occurred here:
+// Destructure with existential pattern
+let {type t; mut value: t; transform: t -> t} = mixed;
+             ^~~                                       
+// Use the transform function

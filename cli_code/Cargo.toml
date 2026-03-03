@@ -15,4 +15,6 @@ clap = { version = "4.0", features = ["derive"] }
 sha2 = "0.10"
 anyhow = "1.0"
 tempfile = "3.0"
+
+[dev-dependencies]
 similar = { version = "2.2", features = ["text"] }

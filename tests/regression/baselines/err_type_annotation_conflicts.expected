@@ -1,0 +1,9 @@
+ERROR
+TypeError: Value is required to have type int here:
+// Should catch type annotation mismatches
+let x: int = "hello"
+       ^~~           
+However, that value may have type str originating here:
+// Should catch type annotation mismatches
+let x: int = "hello"
+             ^~~~~~~ 

@@ -1,0 +1,8 @@
+ERROR
+SyntaxError: Unexpected token }
+Note: expected tokens: ["mut", r#"[A-Za-z_]\\w*"#]
+Parse error occurred here:
+    // Return a function that references the type variable
+    get = fun _ -> x;
+};
+^  

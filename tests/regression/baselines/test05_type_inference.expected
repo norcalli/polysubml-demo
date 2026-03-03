@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = 5n+3n, $.v1 = 2.5+1.0, p.println(($.v0), ($.v1)), p.println((5n===5.0)), p.println(("5"===5n)), $.v2 = {}, p.println(($.v2)), void 0

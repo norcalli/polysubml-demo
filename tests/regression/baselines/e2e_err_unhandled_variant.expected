@@ -1,0 +1,21 @@
+ERROR
+TypeError: Unhandled variant B
+Note: Value originates here:
+    match v with
+    | `A x -> x;
+f (`B 42)
+   ^~     
+But it is not handled here:
+// Exercises: type_errors.rs (unhandled_variant_err), core.rs (case map)
+let f = fun v ->
+    match v with
+    ^~~~~~~      
+    | `A x -> x;
+f (`B 42)
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// E2E error: unhandled variant in match
+// Exercises: type_errors.rs (unhandled_variant_err), core.rs (case map)
+let f = fun (v: _) ->
+            + ++++    
+    match v with
+    | `A x -> x;

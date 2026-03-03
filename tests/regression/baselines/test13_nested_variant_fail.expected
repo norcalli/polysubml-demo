@@ -1,0 +1,17 @@
+ERROR
+TypeError: Unhandled variant NotBar
+Note: Value originates here:
+// Test 13: Nested variant pattern that should fail
+let x = `Foo `NotBar 0;
+             ^~~~~~~    
+match x with
+But it is not handled here:
+match x with
+| `Foo `Bar _ -> "hello"
+       ^~~~              
+| _ -> "world";
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Test 13: Nested variant pattern that should fail
+let x: _ = `Foo `NotBar 0;
+     +++                   
+match x with

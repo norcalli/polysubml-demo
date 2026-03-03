@@ -1,0 +1,2 @@
+SUCCESS
+p.println("Starting basic tests"), p.println((5n+3n)), p.println((7.5*2.0)), p.println(("Hello "+"World")), p.println((10n===10n)), p.println((5n<8n)), void 0

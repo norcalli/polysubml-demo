@@ -1,0 +1,19 @@
+ERROR
+TypeError: Can't set immutable field x.
+Note: Field is required to be mutable here:
+// Exercises: type_errors.rs (immutable_field_err), core.rs (record field mutability)
+let r = {x=1; y=2};
+r.x <- 5
+ ^~      
+But the record is defined with that field immutable here:
+// E2E error: mutation of immutable field
+// Exercises: type_errors.rs (immutable_field_err), core.rs (record field mutability)
+let r = {x=1; y=2};
+         ^          
+r.x <- 5
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// E2E error: mutation of immutable field
+// Exercises: type_errors.rs (immutable_field_err), core.rs (record field mutability)
+let r: _ = {x=1; y=2};
+     +++               
+r.x <- 5

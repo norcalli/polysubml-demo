@@ -1,0 +1,7 @@
+ERROR
+SyntaxError: Unexpected token ;
+Note: expected tokens: ["="]
+Parse error occurred here:
+// Should catch duplicate type parameter declarations
+{type t; type t; a = 1}
+       ^                

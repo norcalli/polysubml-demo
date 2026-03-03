@@ -1,0 +1,2 @@
+SUCCESS
+$.v2 = ($.v0 = {'current': {'$tag': "Idle", '$val': {}}}, $.v1 = (p0, s0={}) => (s0.t0 = $.v0.current, $.v0.current = p0, s0.t0), {'state': $.v0, 'transition': $.v1}), p.println(($.v2.state.current)), $.v2.transition({'$tag': "Running", '$val': {'speed': 10n}}), p.println(($.v2.state.current)), $.v2.transition({'$tag': "Stopped", '$val': {'reason': "user requested"}}), p.println(($.v2.state.current)), $.v8 = ($.t3 = $.v2.state.current, $.t3.$tag==="Idle" ? "idle" : $.t3.$tag==="Running" ? "running" : "stopped"), p.println(($.v8)), void 0

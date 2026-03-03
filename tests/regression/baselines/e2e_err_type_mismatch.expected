@@ -1,0 +1,11 @@
+ERROR
+TypeError: Value is required to have type int here:
+// E2E error: basic type mismatch - int vs string
+// Exercises: type_errors.rs (type_mismatch_err), core.rs (flow checking)
+let x: int = "hello"
+       ^~~           
+However, that value may have type str originating here:
+// E2E error: basic type mismatch - int vs string
+// Exercises: type_errors.rs (type_mismatch_err), core.rs (flow checking)
+let x: int = "hello"
+             ^~~~~~~ 

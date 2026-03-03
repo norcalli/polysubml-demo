@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'a': 10n, 'b': 20n, 'c': 30n}, p.println(($.v0)), $.v2 = ($.t1 = $.v0.a, $.v0.a = 100n, $.t1), p.println("old a:", ($.v2)), p.println("new obj:", ($.v0)), $.v0.a = ($.t4 = $.v0.b, $.v0.b = ($.t5 = $.v0.c, $.v0.c = 999n, $.t5), $.t4), p.println(($.v0)), $.v0.a = $.v0.a+1n, p.println(($.v0)), void 0

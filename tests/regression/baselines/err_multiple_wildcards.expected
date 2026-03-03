@@ -1,0 +1,12 @@
+ERROR
+SyntaxError: Duplicate match pattern
+  | `A x -> x
+  | _ -> 0
+  | _ -> 1  // Second wildcard should error
+    ^                                       
+Note: Wildcard already matched here:
+match `A 5 with
+  | `A x -> x
+  | _ -> 0
+    ^      
+  | _ -> 1  // Second wildcard should error

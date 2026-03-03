@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = 42n>40n ? "big" : "small", p.println(42n, ($.v0)), $.v2 = ($.v1 = 5n*2n, 5n+$.v1), p.println(($.v2)), void 0

@@ -1,0 +1,13 @@
+ERROR
+TypeError: Value is required to have type str here:
+let f = fun (type t) (x: t): t -> x;
+let _: str = 42 |> f[t=int];
+       ^~~                   
+However, that value may have type int originating here:
+let f = fun (type t) (x: t): t -> x;
+let _: str = 42 |> f[t=int];
+                       ^~~   
+Note: Type mismatch was detected starting from this expression:
+let f = fun (type t) (x: t): t -> x;
+let _: str = 42 |> f[t=int];
+                   ^         

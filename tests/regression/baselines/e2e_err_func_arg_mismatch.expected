@@ -1,0 +1,17 @@
+ERROR
+TypeError: Value is required to have type int here:
+// E2E error: passing wrong type to function
+// Exercises: type_errors.rs (type_mismatch_err for func), reachability.rs (flow graph)
+let f = fun (x: int) -> x + 1;
+                ^~~            
+f "not an int"
+However, that value may have type str originating here:
+// Exercises: type_errors.rs (type_mismatch_err for func), reachability.rs (flow graph)
+let f = fun (x: int) -> x + 1;
+f "not an int"
+  ^~~~~~~~~~~~ 
+Note: Type mismatch was detected starting from this expression:
+// Exercises: type_errors.rs (type_mismatch_err for func), reachability.rs (flow graph)
+let f = fun (x: int) -> x + 1;
+f "not an int"
+^              

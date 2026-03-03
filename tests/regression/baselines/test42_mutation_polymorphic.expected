@@ -1,0 +1,10 @@
+ERROR
+SyntaxError: Unexpected token <-
+Note: expected tokens: ["(", "*", ",", ".", ";", "[", "`", "begin", "{", "|>", "}", r#"\"[^\\\\\"\\n\\r]*(?:\\\\[tn'\"\\\\][^\\\\\"\\n\\r]*)*\""#, r#"-?(?:0|[1-9][0-9]*)[eE]-?[0-9]+"#, r#"-?(?:0|[1-9][0-9]*)\\.[0-9]*(?:[eE]-?[0-9]+)?"#, r#"-?(?:[0-9]+)"#, r#"[<>]=?\\.?|[!=]="#, r#"[A-Za-z_]\\w*"#, r#"[\\*/%]\\.?"#, r#"[\\+\\-]\\.?|\\^"#]
+Parse error occurred here:
+let create_mutable_container = fun (type t) (initial: t) -> {
+    mut value = initial;
+    set = fun new_value -> value <- new_value;
+                                 ^~            
+    get = fun _ -> value;
+};

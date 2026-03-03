@@ -1,0 +1,9 @@
+ERROR
+SyntaxError: Repeated variable binding in pattern
+match `Node (`Leaf 1, `Leaf 2) with
+  | `Node (`Leaf x, `Node (`Leaf x, _)) -> x  // x bound in different subpatterns
+                                 ^                                                
+Note: Name was already bound here
+match `Node (`Leaf 1, `Leaf 2) with
+  | `Node (`Leaf x, `Node (`Leaf x, _)) -> x  // x bound in different subpatterns
+                 ^                                                                

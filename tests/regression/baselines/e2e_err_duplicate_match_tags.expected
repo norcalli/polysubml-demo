@@ -1,0 +1,12 @@
+ERROR
+SyntaxError: Duplicate match pattern
+    match v with
+    | `A x -> x
+    | `A y -> y
+      ^~~~      
+Note: Variant already matched here:
+let f = fun v ->
+    match v with
+    | `A x -> x
+      ^~~~      
+    | `A y -> y

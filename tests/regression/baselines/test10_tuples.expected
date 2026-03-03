@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'_0': 1n, '_1': "hello", '_2': 3.14}, p.println(($.v0)), p.println(($.v0._0)), p.println(($.v0._1)), p.println(($.v0._2)), $.v1 = $.v0._0, $.v2 = $.v0._1, $.v3 = $.v0._2, p.println(($.v1), ($.v2), ($.v3)), $.v4 = {'_0': 10n, 'name': "test", '_1': 20n, '_2': 30n}, p.println(($.v4)), $.v5 = $.v4._0, $.v6 = $.v4._1, $.v7 = $.v4._2, p.println(($.v5), ($.v6), ($.v7)), p.println(($.v4.name)), void 0

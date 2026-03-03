@@ -1,0 +1,8 @@
+ERROR
+SyntaxError: Unexpected token ;
+Note: expected tokens: ["="]
+Parse error occurred here:
+let poly_id = fun (type t) (x: t): t -> x;
+let existential_record = {type u; value=42; transform=fun (x: u) -> x};
+                                ^                                       
+// Destructure the existential

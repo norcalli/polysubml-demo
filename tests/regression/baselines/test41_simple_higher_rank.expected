@@ -1,0 +1,16 @@
+ERROR
+TypeError: Value is required to be a type parameter t here:
+// Test if we can even assign a polymorphic function to higher-rank type
+let id = fun (type t) (x: t): t -> x;
+let higher_rank_id: type t. t -> t = id[];
+                                 ^         
+However, that value may be a type parameter t originating here:
+// Test if we can even assign a polymorphic function to higher-rank type
+let id = fun (type t) (x: t): t -> x;
+let higher_rank_id: type t. t -> t = id[];
+                            ^              
+Hint: To narrow down the cause of the type mismatch, consider adding an explicit type annotation here:
+// Test if we can even assign a polymorphic function to higher-rank type
+let id = fun (type t) (x: t): t -> x;
+let higher_rank_id: type t. t -> t = id[t=_];
+                                        +++   

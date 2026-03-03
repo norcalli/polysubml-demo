@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'$tag': "Data", '$val': {'_0': 1n, '_1': "hello", '_2': true}}, $.v5 = ($.t1 = $.v0.$val, $.v2 = $.t1._0, $.v3 = $.t1._1, $.v4 = $.t1._2, {'_0': $.v2, '_1': $.v3, '_2': $.v4}), p.println(($.v5)), $.v6 = {'level1': {'level2': {'level3': {'value': 42n}}}}, p.println(($.v6.level1.level2.level3.value)), $.v7 = {'container': {'count': 0n, 'name': "test"}}, p.println(($.v7.container)), $.v7.container = {'count': 5n, 'name': "updated"}, p.println(($.v7.container)), void 0

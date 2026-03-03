@@ -1,0 +1,34 @@
+ERROR
+TypeError: Value is required to have type t here:
+// Test 30: Type variable shadowing should create distinct types
+let test = fun (type t) (x: t) -> (
+    let inner = fun (type t) (y: t): t -> x;  // Return x (outer t) but promise inner t
+                                     ^                                                  
+    inner
+);
+Where t is the abstract type defined here:
+// Test 30: Type variable shadowing should create distinct types
+let test = fun (type t) (x: t) -> (
+    let inner = fun (type t) (y: t): t -> x;  // Return x (outer t) but promise inner t
+                          ^                                                             
+    inner
+);
+However, that value may have type t originating here:
+// Test 30: Type variable shadowing should create distinct types
+let test = fun (type t) (x: t) -> (
+                            ^       
+    let inner = fun (type t) (y: t): t -> x;  // Return x (outer t) but promise inner t
+    inner
+Where t is the abstract type defined here:
+// Test 30: Type variable shadowing should create distinct types
+let test = fun (type t) (x: t) -> (
+                     ^              
+    let inner = fun (type t) (y: t): t -> x;  // Return x (outer t) but promise inner t
+    inner
+Note: Type mismatch was detected starting from this expression:
+// Test 30: Type variable shadowing should create distinct types
+let test = fun (type t) (x: t) -> (
+    let inner = fun (type t) (y: t): t -> x;  // Return x (outer t) but promise inner t
+                                          ^                                             
+    inner
+);

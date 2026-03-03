@@ -1,0 +1,9 @@
+ERROR
+SyntaxError: Unexpected token )
+Note: expected tokens: [";"]
+Parse error occurred here:
+let weird = `Data (1, "hello", true);
+match weird with
+| `Data (a, b, c) -> (print a, b, c);
+                                   ^  
+// Test deeply nested records

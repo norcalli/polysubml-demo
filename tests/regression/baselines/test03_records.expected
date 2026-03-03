@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = {'name': "Alice", 'age': 30n, 'active': true}, p.println(($.v0.name)), p.println(($.v0.age)), $.v1 = $.v0.name, $.v2 = $.v0.age, p.println("Name:", ($.v1), "Age:", ($.v2)), $.v3 = {'count': 0n, 'label': "test"}, p.println(($.v3)), $.v3.count = $.v3.count+1n, p.println(($.v3)), void 0

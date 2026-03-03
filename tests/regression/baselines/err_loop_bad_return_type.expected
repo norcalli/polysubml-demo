@@ -1,0 +1,18 @@
+ERROR
+TypeError: Value is required to be a variant here:
+let vars = {mut i = 0};
+loop if vars.i > 5 then
+^~~~~~~~~~~~~~~~~~~~~~~~
+  42  // Should return `Break something, not raw int
+else (
+  vars.i <- vars.i + 1;
+  `Continue 0
+)
+~ 
+However, that value may have type int originating here:
+let vars = {mut i = 0};
+loop if vars.i > 5 then
+  42  // Should return `Break something, not raw int
+  ^~                                                 
+else (
+  vars.i <- vars.i + 1;

@@ -1,0 +1,10 @@
+ERROR
+SyntaxError: Unexpected token (
+Note: expected tokens: ["->", ":"]
+Parse error occurred here:
+// Test 37: Higher-rank type inference edge cases
+// Test higher-rank function with existential types
+let apply_to_both = fun (f: type t. t -> t) (pair: (int, str)) -> (
+                                            ^                       
+    let (a, b) = pair;
+    (f a, f b)

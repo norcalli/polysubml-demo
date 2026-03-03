@@ -1,0 +1,2 @@
+SUCCESS
+p.println(("test"+"")), p.println((""+"test")), p.println((""+"")), p.println((1.0/0.0)), p.println((-1.0/0.0)), p.println((0.0/0.0)), p.println(999999999999999999999n), p.println(1.7976931348623157e308), void 0

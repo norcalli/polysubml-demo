@@ -1,0 +1,2 @@
+SUCCESS
+$.v0 = (p0, s0={}) => (p.println((p0%3n===0n ? p0%5n===0n ? "FizzBuzz" : "Fizz" : p0%5n===0n ? "Buzz" : p0)), p0<20n ? $.v0(p0+1n) : 0n), $.v0(0n)
