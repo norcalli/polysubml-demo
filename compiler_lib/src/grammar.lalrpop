@@ -225,10 +225,9 @@ VarOrLiteral: ast::Expr = {
     Spanned<StringIdent> => {
         let (s, span) = <>;
         match s {
-            "false" | "true" => ast::expr::literal(ast::Literal::Bool, (String::from(s), span)),
-            _ => {
-                ast::expr::variable(ustr::ustr(s))
-            }
+            "true" => ast::expr::bool_true(span),
+            "false" => ast::expr::bool_false(span),
+            _ => ast::expr::variable(ustr::ustr(s)),
         }
     },
 
@@ -388,11 +387,23 @@ LetPatternNoIdent: ast::LetPattern = {
 }
 // Allow bare identifiers only if they have no type annotation
 LetPatternNoTypedIdent: ast::LetPattern = {
-    <VarPatName> => ast::LetPattern::Var(<>, None),
+    <v: VarPatName> => {
+        match v.0.map(|n| n.as_str()) {
+            Some("true") => ast::LetPattern::bool_true(v.1),
+            Some("false") => ast::LetPattern::bool_false(v.1),
+            _ => ast::LetPattern::Var(v, None),
+        }
+    },
     <LetPatternNoIdent> => <>,
 }
 LetPattern: ast::LetPattern = {
-    <VarPatName> <TypeAscription?> => ast::LetPattern::Var(<>),
+    <v: VarPatName> <ty: TypeAscription?> => {
+        match v.0.map(|n| n.as_str()) {
+            Some("true") => ast::LetPattern::bool_true(v.1),
+            Some("false") => ast::LetPattern::bool_false(v.1),
+            _ => ast::LetPattern::Var(v, ty),
+        }
+    },
     <LetPatternNoIdent> => <>,
 }
 
@@ -423,8 +434,8 @@ FuncDef: ast::Expr = {
 
 
 If: ast::Expr = {
-    "if" <Spanned<Box<SExpr>>> "then" <Box<SExpr>> "else" <Box<SNoSemiExpr>> => {
-        ast::expr::if_expr(<>)
+    "if" <cond: Spanned<Box<SExpr>>> "then" <then_expr: Box<SExpr>> "else" <else_expr: Box<SNoSemiExpr>> => {
+        ast::expr::if_expr(cond, then_expr, else_expr)
     },
 }
 

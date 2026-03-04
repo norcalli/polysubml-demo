@@ -2,6 +2,7 @@ use im_rc::HashMap;
 
 use crate::ast;
 use crate::ast::StringId;
+use crate::spans::Span;
 use crate::core::*;
 use crate::parse_types::TreeMaterializerState;
 use crate::parse_types::TypeParser;
@@ -34,7 +35,6 @@ pub struct TypeckState {
     core: TypeCheckerCore,
     bindings: Bindings,
 
-    TY_BOOL: TypeCtorInd,
     TY_FLOAT: TypeCtorInd,
     TY_INT: TypeCtorInd,
     TY_STR: TypeCtorInd,
@@ -43,7 +43,6 @@ impl TypeckState {
     #[allow(non_snake_case)]
     pub fn new() -> Self {
         let mut core = TypeCheckerCore::new();
-        let TY_BOOL = core.add_builtin_type(ustr::ustr("bool"));
         let TY_FLOAT = core.add_builtin_type(ustr::ustr("float"));
         let TY_INT = core.add_builtin_type(ustr::ustr("int"));
         let TY_STR = core.add_builtin_type(ustr::ustr("str"));
@@ -52,7 +51,6 @@ impl TypeckState {
             core,
             bindings: Bindings::new(),
 
-            TY_BOOL,
             TY_FLOAT,
             TY_INT,
             TY_STR,
@@ -63,6 +61,18 @@ impl TypeckState {
         }
 
         new
+    }
+
+    /// Create a bool-typed value: `t {} | `f {} via an inference variable
+    fn make_bool_val(&mut self, span: Span) -> Value {
+        let (val, use_) = self.core.var(HoleSrc::CheckedExpr(span), self.bindings.scopelvl);
+        let empty_t = self.core.new_val(VObj { fields: HashMap::new() }, span, None);
+        let empty_f = self.core.new_val(VObj { fields: HashMap::new() }, span, None);
+        let case_t = self.core.new_val(VCase { case: (ustr::ustr("t"), empty_t) }, span, None);
+        let case_f = self.core.new_val(VCase { case: (ustr::ustr("f"), empty_f) }, span, None);
+        self.core.flow(case_t, use_, span, self.bindings.scopelvl).unwrap();
+        self.core.flow(case_f, use_, span, self.bindings.scopelvl).unwrap();
+        val
     }
 
     fn parse_type_signature(&mut self, tyexpr: &ast::STypeExpr) -> Result<(Value, Use)> {
@@ -114,12 +124,6 @@ impl TypeckState {
                     .core
                     .obj_use(vec![(e.field.0, (bound, Some(rhs_type), e.field.1))], e.field.1);
                 self.check_expr(&e.expr, bound)?;
-            }
-            If(e) => {
-                let bool_use = self.core.simple_use(self.TY_BOOL, e.cond.1);
-                self.check_expr(&e.cond.0, bool_use)?;
-                self.check_expr(&e.then_expr, bound)?;
-                self.check_expr(&e.else_expr, bound)?;
             }
             InstantiateUni(e) => {
                 let mut params = HashMap::new();
@@ -234,7 +238,6 @@ impl TypeckState {
                 let (lhs_bound, rhs_bound) = match arg_class {
                     Some(arg_class) => {
                         let cls = match arg_class {
-                            Bool => self.TY_BOOL,
                             Float => self.TY_FLOAT,
                             Int => self.TY_INT,
                             Str => self.TY_STR,
@@ -247,13 +250,20 @@ impl TypeckState {
                 self.check_expr(&e.lhs, lhs_bound)?;
                 self.check_expr(&e.rhs, rhs_bound)?;
 
-                let cls = match ret_class {
-                    Bool => self.TY_BOOL,
-                    Float => self.TY_FLOAT,
-                    Int => self.TY_INT,
-                    Str => self.TY_STR,
-                };
-                Ok(self.core.simple_val(cls, expr.1))
+                use ast::RetType;
+                match ret_class {
+                    RetType::Lit(lit) => {
+                        let cls = match lit {
+                            Float => self.TY_FLOAT,
+                            Int => self.TY_INT,
+                            Str => self.TY_STR,
+                        };
+                        Ok(self.core.simple_val(cls, expr.1))
+                    }
+                    RetType::Bool => {
+                        Ok(self.make_bool_val(expr.1))
+                    }
+                }
             }
             // Allow block expressions to be inferred as well as checked
             // TODO - deduplicate this code
@@ -298,21 +308,6 @@ impl TypeckState {
                 self.bindings = saved_bindings;
                 Ok(func_type)
             }
-            // Allow if expressions to be inferred as well as checked
-            // TODO - deduplicate this code
-            If(e) => {
-                let (cond_expr, span) = (&e.cond.0, e.cond.1);
-                let bool_use = self.core.simple_use(self.TY_BOOL, span);
-                self.check_expr(cond_expr, bool_use)?;
-                let res1 = self.infer_expr(&e.then_expr)?;
-                let res2 = self.infer_expr(&e.else_expr)?;
-                if res1 == res2 {
-                    Ok(res1)
-                } else {
-                    // spans for Union nodes don't matter, so just use whatever is handy
-                    Ok(self.core.new_val(VUnion(vec![res1, res2].into()), span, None))
-                }
-            }
             InstantiateExist(e) => {
                 let (ref sigs, sigs_span) = e.types;
                 let src_kind = e.source;
@@ -338,7 +333,6 @@ impl TypeckState {
                 let span = e.value.1;
 
                 let ty = match e.lit_type {
-                    Bool => self.TY_BOOL,
                     Float => self.TY_FLOAT,
                     Int => self.TY_INT,
                     Str => self.TY_STR,

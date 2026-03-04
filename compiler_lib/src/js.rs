@@ -38,20 +38,20 @@ pub fn void() -> Expr {
 pub fn eqop(lhs: Expr, rhs: Expr) -> Expr {
     Expr(Expr2::BinOp(lhs.0.into(), rhs.0.into(), Op::Eq))
 }
-pub fn field(lhs: Expr, rhs: String) -> Expr {
-    Expr(Expr2::Field(lhs.0.into(), rhs))
+pub fn field(lhs: Expr, rhs: impl Into<String>) -> Expr {
+    Expr(Expr2::Field(lhs.0.into(), rhs.into()))
 }
 pub fn scope_field(scope_var: &str, name: &str) -> Expr {
     Expr(Expr2::ScopeField(scope_var.to_string(), name.to_string()))
 }
-pub fn lit(code: String) -> Expr {
-    Expr(Expr2::Literal(code))
+pub fn lit(code: impl Into<String>) -> Expr {
+    Expr(Expr2::Literal(code.into()))
 }
 pub fn ternary(cond: Expr, e1: Expr, e2: Expr) -> Expr {
     Expr(Expr2::Ternary(cond.0.into(), e1.0.into(), e2.0.into()))
 }
-pub fn var(s: String) -> Expr {
-    Expr(Expr2::Var(s))
+pub fn var(s: impl Into<String>) -> Expr {
+    Expr(Expr2::Var(s.into()))
 }
 
 pub fn comma_list(exprs: Vec<Expr>) -> Expr {

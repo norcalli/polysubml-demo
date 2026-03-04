@@ -1,2 +1,2 @@
 SUCCESS
-$.v0 = (p0, s0={}) => (s0.v0 = {'value': p0}, (p1, s1={}) => (s1.t0 = s0.v0.value, s0.v0.value = p1, s1.t0)), $.v1 = $.v0(42n), $.v2 = $.v0("hello"), p.println(($.v1(100n))), p.println(($.v2("world"))), $.v3 = true ? $.v1 : $.v2, void 0
+$.v0 = (p0, s0={}) => (s0.v0 = {'value': p0}, (p1, s1={}) => (s1.t0 = s0.v0.value, s0.v0.value = p1, s1.t0)), $.v1 = $.v0(42n), $.v2 = $.v0("hello"), p.println(($.v1(100n))), p.println(($.v2("world"))), $.v3 = true===true ? $.v1 : $.v2, void 0

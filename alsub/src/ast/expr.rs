@@ -6,6 +6,7 @@ use crate::ast::STypeExpr;
 use crate::ast::Statement;
 use crate::ast::StringId;
 use crate::ast::TypeParam;
+use crate::spans::Span;
 use crate::spans::Spanned;
 
 pub type KeyPair = (Spanned<StringId>, Box<SExpr>, bool, Option<STypeExpr>);
@@ -67,13 +68,6 @@ pub struct FuncDefExpr {
 }
 
 #[derive(Debug, Clone)]
-pub struct IfExpr {
-    pub cond: Spanned<Box<SExpr>>,
-    pub then_expr: Box<SExpr>,
-    pub else_expr: Box<SExpr>,
-}
-
-#[derive(Debug, Clone)]
 pub struct InstantiateExistExpr {
     pub expr: Box<SExpr>,
     pub types: Spanned<Vec<(StringId, STypeExpr)>>,
@@ -129,7 +123,6 @@ pub enum Expr {
     FieldAccess(FieldAccessExpr),
     FieldSet(FieldSetExpr),
     FuncDef(FuncDefExpr),
-    If(IfExpr),
     InstantiateExist(InstantiateExistExpr),
     InstantiateUni(InstantiateUniExpr),
     Literal(LiteralExpr),
@@ -195,14 +188,6 @@ pub fn func_def(
     })
 }
 
-pub fn if_expr(cond: Spanned<Box<SExpr>>, then_expr: Box<SExpr>, else_expr: Box<SExpr>) -> Expr {
-    Expr::If(IfExpr {
-        cond,
-        then_expr,
-        else_expr,
-    })
-}
-
 pub fn instantiate_exist(
     expr: Box<SExpr>,
     types: Spanned<Vec<(StringId, STypeExpr)>>,
@@ -231,10 +216,38 @@ pub fn record(fields: Vec<KeyPair>) -> Expr {
     Expr::Record(RecordExpr { fields })
 }
 
+/// `{}` — the unit value
+pub fn unit() -> Expr {
+    record(vec![])
+}
+
 pub fn typed(expr: Box<SExpr>, type_expr: STypeExpr) -> Expr {
     Expr::Typed(TypedExpr { expr, type_expr })
 }
 
 pub fn variable(name: StringId) -> Expr {
     Expr::Variable(VariableExpr { name })
+}
+
+/// `true` → `` `t {} ``
+pub fn bool_true(span: Span) -> Expr {
+    case((ustr::ustr("t"), span), Box::new((unit(), span)))
+}
+
+/// `false` → `` `f {} ``
+pub fn bool_false(span: Span) -> Expr {
+    case((ustr::ustr("f"), span), Box::new((unit(), span)))
+}
+
+/// `if cond then a else b` → `match cond with | \`t _ -> a | \`f _ -> b`
+pub fn if_expr(cond: Spanned<Box<SExpr>>, then_expr: Box<SExpr>, else_expr: Box<SExpr>) -> Expr {
+    let span = cond.1;
+    let wildcard = LetPattern::Var((None, span), None);
+    match_expr(
+        cond,
+        vec![
+            ((LetPattern::Case((ustr::ustr("t"), span), Box::new(wildcard.clone())), span), then_expr),
+            ((LetPattern::Case((ustr::ustr("f"), span), Box::new(wildcard)), span), else_expr),
+        ],
+    )
 }

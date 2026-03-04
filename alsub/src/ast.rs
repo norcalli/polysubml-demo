@@ -14,7 +14,6 @@ pub type StringId = ustr::Ustr;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
-    Bool,
     Float,
     Int,
     Str,
@@ -37,13 +36,18 @@ pub enum Op {
     Neq,
 }
 
-pub type OpType = (Option<Literal>, Literal);
-pub const INT_OP: OpType = (Some(Literal::Int), Literal::Int);
-pub const FLOAT_OP: OpType = (Some(Literal::Float), Literal::Float);
-pub const STR_OP: OpType = (Some(Literal::Str), Literal::Str);
-pub const INT_CMP: OpType = (Some(Literal::Int), Literal::Bool);
-pub const FLOAT_CMP: OpType = (Some(Literal::Float), Literal::Bool);
-pub const ANY_CMP: OpType = (None, Literal::Bool);
+#[derive(Debug, Clone)]
+pub enum RetType {
+    Lit(Literal),
+    Bool, // Variant type `t {} | `f {}
+}
+pub type OpType = (Option<Literal>, RetType);
+pub const INT_OP: OpType = (Some(Literal::Int), RetType::Lit(Literal::Int));
+pub const FLOAT_OP: OpType = (Some(Literal::Float), RetType::Lit(Literal::Float));
+pub const STR_OP: OpType = (Some(Literal::Str), RetType::Lit(Literal::Str));
+pub const INT_CMP: OpType = (Some(Literal::Int), RetType::Bool);
+pub const FLOAT_CMP: OpType = (Some(Literal::Float), RetType::Bool);
+pub const ANY_CMP: OpType = (None, RetType::Bool);
 
 type LetDefinition = (LetPattern, Box<SExpr>);
 pub type LetRecDefinition = (StringId, SExpr);
@@ -53,6 +57,22 @@ pub enum LetPattern {
     Case(Spanned<StringId>, Box<LetPattern>),
     Record(Spanned<(Vec<TypeParam>, Vec<(Spanned<StringId>, Box<LetPattern>)>)>),
     Var((Option<StringId>, Span), Option<STypeExpr>),
+}
+impl LetPattern {
+    /// `{}` — the unit pattern
+    pub fn unit(span: Span) -> Self {
+        LetPattern::Record(((vec![], vec![]), span))
+    }
+
+    /// Pattern for `true` → `` `t {} ``
+    pub fn bool_true(span: Span) -> Self {
+        LetPattern::Case((ustr::ustr("t"), span), Box::new(Self::unit(span)))
+    }
+
+    /// Pattern for `false` → `` `f {} ``
+    pub fn bool_false(span: Span) -> Self {
+        LetPattern::Case((ustr::ustr("f"), span), Box::new(Self::unit(span)))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

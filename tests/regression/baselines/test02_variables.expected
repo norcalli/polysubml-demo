@@ -1,2 +1,2 @@
 SUCCESS
-$.v0 = 42n>40n ? "big" : "small", p.println(42n, ($.v0)), $.v2 = ($.v1 = 5n*2n, 5n+$.v1), p.println(($.v2)), void 0
+$.v1 = ($.t0 = 42n>40n, $.t0===true ? "big" : "small"), p.println(42n, ($.v1)), $.v3 = ($.v2 = 5n*2n, 5n+$.v2), p.println(($.v3)), void 0

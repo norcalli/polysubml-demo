@@ -1,2 +1,2 @@
 SUCCESS
-$.v0 = (p0, s0={}) => p0<=1n ? 1n : p0*$.v0(p0- 1n), p.println(($.v0(5n))), p.println(($.v0(0n))), p.println(($.v0(1n))), void 0
+$.v0 = (p0, s0={}) => (s0.t0 = p0<=1n, s0.t0===true ? 1n : p0*$.v0(p0- 1n)), p.println(($.v0(5n))), p.println(($.v0(0n))), p.println(($.v0(1n))), void 0

@@ -19,7 +19,8 @@ class Printer {
 
     visit(e) {
         const type = typeof e;
-        if (type === 'boolean' || type === 'bigint') {this.push(e.toString()); return;}
+        if (type === 'boolean') {this.push(e ? 't{}' : 'f{}'); return;}
+        if (type === 'bigint') {this.push(e.toString()); return;}
         if (type === 'string') {this.push(JSON.stringify(e)); return;}
         if (type === 'number') {
             let s = e.toString();

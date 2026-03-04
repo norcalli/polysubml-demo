@@ -1,2 +1,2 @@
 SUCCESS
-$.v0 = (p0, s0={}) => (p.println((p0%3n===0n ? p0%5n===0n ? "FizzBuzz" : "Fizz" : p0%5n===0n ? "Buzz" : p0)), p0<20n ? $.v0(p0+1n) : 0n), $.v0(0n)
+$.v0 = (p0, s0={}) => (p.println((s0.t0 = p0%3n===0n, s0.t0===true ? (s0.t1 = p0%5n===0n, s0.t1===true ? "FizzBuzz" : "Fizz") : (s0.t2 = p0%5n===0n, s0.t2===true ? "Buzz" : p0))), s0.t3 = p0<20n, s0.t3===true ? $.v0(p0+1n) : 0n), $.v0(0n)

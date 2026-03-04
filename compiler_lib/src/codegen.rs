@@ -2,6 +2,7 @@ use std::mem::swap;
 
 use alsub::ast;
 use alsub::ast::StringId;
+use alsub::Spanned;
 use crate::js;
 use alsub::unwindmap::UnwindMap;
 
@@ -122,6 +123,28 @@ impl<'a> core::ops::DerefMut for Context<'a> {
     }
 }
 
+fn is_bool_case(e: &ast::expr::CaseExpr) -> bool {
+    (e.tag.0.as_str() == "t" || e.tag.0.as_str() == "f")
+        && matches!(&e.expr.0, ast::Expr::Record(r) if r.fields.is_empty())
+}
+
+fn is_bool_match(cases: &[(Spanned<ast::LetPattern>, Box<ast::SExpr>)]) -> bool {
+    let mut has_case = false;
+    for ((pattern, _), _) in cases {
+        match pattern {
+            ast::LetPattern::Case((tag, _), _) => {
+                let s = tag.as_str();
+                if s != "t" && s != "f" {
+                    return false;
+                }
+                has_case = true;
+            }
+            _ => {} // wildcards are fine
+        }
+    }
+    has_case
+}
+
 fn compile(ctx: &mut Context<'_>, expr: &ast::SExpr) -> js::Expr {
     match &expr.0 {
         ast::Expr::BinOp(e) => {
@@ -142,6 +165,7 @@ fn compile(ctx: &mut Context<'_>, expr: &ast::SExpr) -> js::Expr {
                 ast::Op::Eq => js::Op::Eq,
                 ast::Op::Neq => js::Op::Neq,
             };
+            // JS comparisons already return native booleans
             js::binop(lhs, rhs, jsop)
         }
         ast::Expr::Block(e) => {
@@ -171,9 +195,13 @@ fn compile(ctx: &mut Context<'_>, expr: &ast::SExpr) -> js::Expr {
             }
         }
         ast::Expr::Case(e) => {
-            let tag = js::lit(format!("\"{}\"", ctx.get(e.tag.0)));
-            let expr = compile(ctx, &e.expr);
-            js::obj(vec![("$tag".to_string(), tag), ("$val".to_string(), expr)])
+            if is_bool_case(e) {
+                js::lit(if e.tag.0.as_str() == "t" { "true" } else { "false" })
+            } else {
+                let tag = js::lit(format!("\"{}\"", ctx.get(e.tag.0)));
+                let expr = compile(ctx, &e.expr);
+                js::obj(vec![("$tag".to_string(), tag), ("$val".to_string(), expr)])
+            }
         }
         ast::Expr::FieldAccess(e) => {
             let lhs = compile(ctx, &e.expr);
@@ -198,19 +226,13 @@ fn compile(ctx: &mut Context<'_>, expr: &ast::SExpr) -> js::Expr {
                 swap(&mut new_scope_name, &mut ctx.scope_var_name);
 
                 //////////////////////////////////////////////////////
-                let js_pattern = compile_let_pattern(ctx, &e.param.0).unwrap_or_else(|| js::var("_".to_string()));
+                let js_pattern = compile_let_pattern(ctx, &e.param.0).unwrap_or_else(|| js::var("_"));
                 let body = compile(ctx, &e.body);
                 //////////////////////////////////////////////////////
 
                 swap(&mut new_scope_name, &mut ctx.scope_var_name);
                 js::func(js_pattern, new_scope_name, body)
             })
-        }
-        ast::Expr::If(e) => {
-            let cond_expr = compile(ctx, &e.cond.0);
-            let then_expr = compile(ctx, &e.then_expr);
-            let else_expr = compile(ctx, &e.else_expr);
-            js::ternary(cond_expr, then_expr, else_expr)
         }
         ast::Expr::InstantiateExist(e) => compile(ctx, &e.expr),
         ast::Expr::InstantiateUni(e) => compile(ctx, &e.expr),
@@ -226,18 +248,22 @@ fn compile(ctx: &mut Context<'_>, expr: &ast::SExpr) -> js::Expr {
             }
         }
         ast::Expr::Loop(e) => {
-            let lhs = js::var("loop".to_string());
+            let lhs = js::var("loop");
             let rhs = compile(ctx, &e.body);
-            let rhs = js::func(js::var("_".to_string()), "_2".to_string(), rhs);
+            let rhs = js::func(js::var("_"), "_2".to_string(), rhs);
             js::call(lhs, rhs)
         }
         ast::Expr::Match(e) => {
+            let is_bool = is_bool_match(&e.cases);
+
             let mut exprs = Vec::new();
             let match_compiled = compile(ctx, &e.expr.0);
             let temp_var = ctx.new_temp_var_assign(match_compiled, &mut exprs);
 
-            let tag_expr = js::field(temp_var.clone(), "$tag".to_string());
-            let val_expr = js::field(temp_var.clone(), "$val".to_string());
+            // For boolean matches, compare directly against true/false
+            // For variant matches, compare $tag strings
+            let tag_expr = if is_bool { temp_var.clone() } else { js::field(temp_var.clone(), "$tag") };
+            let val_expr = if is_bool { js::obj(vec![]) } else { js::field(temp_var.clone(), "$val") };
 
             let mut branches = Vec::new();
             let mut wildcard = None;
@@ -266,7 +292,11 @@ fn compile(ctx: &mut Context<'_>, expr: &ast::SExpr) -> js::Expr {
             let mut res = wildcard.unwrap_or_else(|| branches.pop().unwrap().1);
             while let Some((tag, rhs_expr)) = branches.pop() {
                 assert!(tag.len() > 0);
-                let cond = js::eqop(tag_expr.clone(), js::lit(format!("\"{}\"", tag)));
+                let cond = if is_bool {
+                    js::eqop(tag_expr.clone(), js::lit(if tag == "t" { "true" } else { "false" }))
+                } else {
+                    js::eqop(tag_expr.clone(), js::lit(format!("\"{}\"", tag)))
+                };
                 res = js::ternary(cond, rhs_expr, res);
             }
 
