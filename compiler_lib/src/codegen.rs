@@ -1,10 +1,11 @@
 use std::mem::swap;
 
+use im_rc::HashMap;
+
 use alsub::ast;
 use alsub::ast::StringId;
 use alsub::Spanned;
 use crate::js;
-use alsub::unwindmap::UnwindMap;
 
 pub struct ModuleBuilder {
     scope_var_name: String, // name of JS var used to store variables in the current scope
@@ -13,7 +14,7 @@ pub struct ModuleBuilder {
     // For choosing new var names
     var_counter: u64,
     // ML name -> JS expr for current scope
-    bindings: UnwindMap<StringId, js::Expr>,
+    bindings: HashMap<StringId, js::Expr>,
 }
 impl ModuleBuilder {
     pub fn new() -> Self {
@@ -22,7 +23,7 @@ impl ModuleBuilder {
             scope_counter: 0,
             param_counter: 0,
             var_counter: 0,
-            bindings: UnwindMap::new(),
+            bindings: HashMap::new(),
         }
     }
 
@@ -82,9 +83,9 @@ impl ModuleBuilder {
 pub struct Context<'a>(pub &'a mut ModuleBuilder);
 impl<'a> Context<'a> {
     fn ml_scope<T>(&mut self, cb: impl FnOnce(&mut Self) -> T) -> T {
-        let n = self.bindings.unwind_point();
+        let saved = self.bindings.clone();
         let res = cb(self);
-        self.bindings.unwind(n);
+        self.bindings = saved;
         res
     }
 
@@ -406,6 +407,6 @@ pub fn compile_script(ctx: &mut Context<'_>, parsed: &[ast::Statement]) -> js::E
     }
 
     let mut res = js::comma_list(exprs);
-    js::optimize(&mut res, ctx.scope_var_name.to_owned(), &ctx.bindings.m);
+    js::optimize(&mut res, ctx.scope_var_name.to_owned(), &ctx.bindings);
     res
 }

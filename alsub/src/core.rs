@@ -66,7 +66,7 @@ pub struct TypeCtorInd(pub usize);
 pub struct PolyHeadData {
     pub kind: PolyKind,
     pub loc: SourceLoc,
-    pub params: Rc<[(StringId, Span)]>,
+    pub params: HashMap<StringId, Span>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -546,7 +546,7 @@ impl TypeCheckerCore {
                     Some(p) => p.clone(),
                     None => {
                         let mut all = explicit_params;
-                        for (name, _) in poly.params.iter().copied() {
+                        for (&name, _) in poly.params.iter() {
                             // println!("inserting var for {}", name.into_inner());
                             if !all.contains_key(&name) {
                                 all.insert(name, self.var(HoleSrc::Instantiation(src_template, name), scopelvl));

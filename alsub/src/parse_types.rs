@@ -14,7 +14,6 @@ use crate::type_errors::HoleSrc;
 use im_rc::HashMap;
 
 use crate::typeck::Bindings;
-use crate::unwindmap::UnwindMap;
 
 use UTypeHead::*;
 use VTypeHead::*;
@@ -296,8 +295,7 @@ impl<'a> TreeMaterializer<'a> {
             let subs: HashMap<_, _> = spec
                 .params
                 .iter()
-                .copied()
-                .map(|(name, span)| (name, self.core.add_abstract_type(name, span, bindings.scopelvl)))
+                .map(|(&name, &span)| (name, self.core.add_abstract_type(name, span, bindings.scopelvl)))
                 .collect();
 
             let mut ctx = InstantionContext::new(self.core, Substitutions::Abs(&subs), spec.loc);
@@ -373,9 +371,10 @@ enum TypeVar {
     Rec(SourceLoc),
     Param(VarSpec),
 }
+#[derive(Clone)]
 pub struct TypeParser<'a> {
     global_types: &'a HashMap<StringId, TypeCtorInd>,
-    local_types: UnwindMap<StringId, TypeVar>,
+    local_types: HashMap<StringId, TypeVar>,
 
     // If loc isn't allowed in either kind, remove it from the map
     join_allowed: HashMap<SourceLoc, JoinKind>,
@@ -385,14 +384,14 @@ impl<'a> TypeParser<'a> {
     pub fn new(global_types: &'a HashMap<StringId, TypeCtorInd>) -> Self {
         Self {
             global_types,
-            local_types: UnwindMap::new(),
+            local_types: HashMap::new(),
             join_allowed: HashMap::new(),
             join_flipped: false,
         }
     }
 
     fn parse_union_or_intersect_type(
-        &mut self,
+        &self,
         deps: &mut PolyAndRecDeps,
         kind: JoinKind,
         exprs: &[ast::STypeExpr],
@@ -438,22 +437,19 @@ impl<'a> TypeParser<'a> {
         Ok(VarJoin(kind, vars, default))
     }
 
-    fn parse_type_sub_contravariant(&mut self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
-        self.join_flipped = !self.join_flipped;
-        let res = self.parse_type_sub(tyexpr);
-        self.join_flipped = !self.join_flipped;
-        res
+    fn parse_type_sub_contravariant(&self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
+        let mut inner = self.clone();
+        inner.join_flipped = !inner.join_flipped;
+        inner.parse_type_sub(tyexpr)
     }
 
-    fn parse_type_sub_invariant(&mut self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
-        let temp = std::mem::take(&mut self.join_allowed);
-        let res = self.parse_type_sub(tyexpr);
-        self.join_allowed = temp;
-
-        res
+    fn parse_type_sub_invariant(&self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
+        let mut inner = self.clone();
+        inner.join_allowed = HashMap::new();
+        inner.parse_type_sub(tyexpr)
     }
 
-    fn parse_type_sub(&mut self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
+    fn parse_type_sub(&self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
         use ast::TypeExpr::*;
         let mut deps = PolyAndRecDeps::default();
         let span = tyexpr.1;
@@ -518,42 +514,41 @@ impl<'a> TypeParser<'a> {
             }
             &Poly(ref params, ref def, kind) => {
                 let loc = SourceLoc(span);
-                let mark = self.local_types.unwind_point();
-                self.join_allowed.insert(
-                    loc,
-                    match kind {
-                        PolyKind::Universal => JoinKind::Union,
-                        PolyKind::Existential => JoinKind::Intersect,
-                    },
-                );
 
                 let mut parsed_params = HashMap::new();
-                for param in params.iter().copied() {
-                    parsed_params.insert(param.name.0, param.name.1);
-                    self.local_types
-                        .insert(param.alias.0, TypeVar::Param(VarSpec { loc, name: param.name.0 }));
-                }
-
-                let sub = deps.add(self.parse_type_sub(def)?);
-
-                self.join_allowed.remove(&loc);
-                self.local_types.unwind(mark);
+                let sub = {
+                    let mut inner = self.clone();
+                    inner.join_allowed.insert(
+                        loc,
+                        match kind {
+                            PolyKind::Universal => JoinKind::Union,
+                            PolyKind::Existential => JoinKind::Intersect,
+                        },
+                    );
+                    for param in params.iter().copied() {
+                        parsed_params.insert(param.name.0, param.name.1);
+                        inner.local_types
+                            .insert(param.alias.0, TypeVar::Param(VarSpec { loc, name: param.name.0 }));
+                    }
+                    deps.add(inner.parse_type_sub(def)?)
+                };
                 deps.poly.0.remove(&loc);
 
                 let spec = Rc::new(PolyHeadData {
                     kind,
                     loc,
-                    params: parsed_params.iter().map(|(&k, &v)| (k, v)).collect(),
+                    params: parsed_params,
                 });
                 ParsedTypeHead::PolyHead(spec, sub)
             }
             &RecursiveDef(name, ref def) => {
                 let loc = SourceLoc(span);
 
-                let mark = self.local_types.unwind_point();
-                self.local_types.insert(name, TypeVar::Rec(loc));
-                let sub = deps.add(self.parse_type_sub(def)?);
-                self.local_types.unwind(mark);
+                let sub = {
+                    let mut inner = self.clone();
+                    inner.local_types.insert(name, TypeVar::Rec(loc));
+                    deps.add(inner.parse_type_sub(def)?)
+                };
 
                 use ParsedTypeHead::*;
                 if !matches!(sub.2, Case(..) | Func(..) | Record(..) | PolyHead(..) | RecHead(..)) {
@@ -572,7 +567,7 @@ impl<'a> TypeParser<'a> {
         Ok(Rc::new((deps, span, head)))
     }
 
-    fn parse_type_or_hole_sub(&mut self, tyexpr: Option<&ast::STypeExpr>, span_before_hole: Span) -> Result<RcParsedType> {
+    fn parse_type_or_hole_sub(&self, tyexpr: Option<&ast::STypeExpr>, span_before_hole: Span) -> Result<RcParsedType> {
         tyexpr.map(|tyexpr| self.parse_type_sub(tyexpr)).unwrap_or_else(|| {
             Ok(Rc::new((
                 PolyAndRecDeps::default(),
@@ -583,46 +578,47 @@ impl<'a> TypeParser<'a> {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////
-    pub fn parse_type(&mut self, tyexpr: &ast::STypeExpr) -> Result<ParsedTypeSig> {
+    pub fn parse_type(&self, tyexpr: &ast::STypeExpr) -> Result<ParsedTypeSig> {
         Ok(ParsedTypeSig(self.parse_type_sub(tyexpr)?))
     }
 
-    pub fn parse_type_or_hole(&mut self, tyexpr: Option<&ast::STypeExpr>, span_before_hole: Span) -> Result<ParsedTypeSig> {
+    pub fn parse_type_or_hole(&self, tyexpr: Option<&ast::STypeExpr>, span_before_hole: Span) -> Result<ParsedTypeSig> {
         Ok(ParsedTypeSig(self.parse_type_or_hole_sub(tyexpr, span_before_hole)?))
     }
 
-    fn add_type_params(
-        &mut self,
+    fn with_type_params(
+        &self,
         loc: SourceLoc,
         ty_params: &[TypeParam],
         kind: ast::PolyKind,
         out: &mut ParsedBindings,
-    ) -> Option<Rc<PolyHeadData>> {
+    ) -> (Self, Option<Rc<PolyHeadData>>) {
         if ty_params.is_empty() {
-            return None;
+            return (self.clone(), None);
         }
 
+        let mut inner = self.clone();
         let mut parsed_params = HashMap::new();
         for param in ty_params.iter().copied() {
             let (name, name_span) = param.name;
             let (alias, _alias_span) = param.alias;
 
             parsed_params.insert(name, name_span);
-            self.local_types.insert(alias, TypeVar::Param(VarSpec { loc, name }));
+            inner.local_types.insert(alias, TypeVar::Param(VarSpec { loc, name }));
             out.types.push((alias, loc, name));
         }
 
         let spec = Rc::new(PolyHeadData {
             kind,
             loc,
-            params: parsed_params.iter().map(|(&k, &v)| (k, v)).collect(),
+            params: parsed_params,
         });
         out.poly_heads.push(spec.clone());
-        Some(spec)
+        (inner, Some(spec))
     }
 
     fn parse_let_pattern_sub(
-        &mut self,
+        &self,
         pat: &ast::LetPattern,
         out: &mut ParsedBindings,
         no_typed_var_allowed: bool,
@@ -665,27 +661,28 @@ impl<'a> TypeParser<'a> {
             }
             &Record(((ref ty_params, ref pairs), span)) => {
                 let loc = SourceLoc(span);
-                let mark = self.local_types.unwind_point();
 
-                let poly_spec = self.add_type_params(loc, ty_params, ast::PolyKind::Existential, out);
+                let (poly_spec, fields, mut deps) = {
+                    let (inner, poly_spec) = self.with_type_params(loc, ty_params, ast::PolyKind::Existential, out);
 
-                let mut field_names = HashMap::new();
-                let mut fields = HashMap::new();
-                let mut deps = PolyAndRecDeps::default();
-                for &((name, name_span), ref sub_pattern) in pairs {
-                    if let Some(old_span) = field_names.insert(name, name_span) {
-                        return Err(SyntaxError::new2(
-                            "SyntaxError: Repeated field pattern name",
-                            name_span,
-                            "Note: Field was already bound here",
-                            old_span,
-                        ));
+                    let mut field_names = HashMap::new();
+                    let mut fields = HashMap::new();
+                    let mut deps = PolyAndRecDeps::default();
+                    for &((name, name_span), ref sub_pattern) in pairs {
+                        if let Some(old_span) = field_names.insert(name, name_span) {
+                            return Err(SyntaxError::new2(
+                                "SyntaxError: Repeated field pattern name",
+                                name_span,
+                                "Note: Field was already bound here",
+                                old_span,
+                            ));
+                        }
+
+                        let sub = deps.add(inner.parse_let_pattern_sub(sub_pattern, out, false)?);
+                        fields.insert(name, (name_span, sub, None));
                     }
-
-                    let sub = deps.add(self.parse_let_pattern_sub(sub_pattern, out, false)?);
-                    fields.insert(name, (name_span, sub, None));
-                }
-                self.local_types.unwind(mark);
+                    (poly_spec, fields, deps)
+                };
 
                 let mut new_type = Rc::new((deps.clone(), span, ParsedTypeHead::Record(fields)));
                 if let Some(spec) = poly_spec {
@@ -698,14 +695,14 @@ impl<'a> TypeParser<'a> {
         })
     }
 
-    pub fn parse_let_pattern(&mut self, pat: &ast::LetPattern, no_typed_var_allowed: bool) -> Result<ParsedLetPattern> {
+    pub fn parse_let_pattern(&self, pat: &ast::LetPattern, no_typed_var_allowed: bool) -> Result<ParsedLetPattern> {
         let mut out = ParsedBindings::default();
         let ty = self.parse_let_pattern_sub(pat, &mut out, no_typed_var_allowed)?;
         Ok(ParsedLetPattern(ty, out))
     }
 
     pub fn parse_func_sig(
-        &mut self,
+        &self,
         ty_params: &Option<Vec<TypeParam>>,
         arg_pat: &(ast::LetPattern, Span),
         ret_type: Option<&ast::STypeExpr>,
@@ -717,14 +714,14 @@ impl<'a> TypeParser<'a> {
         let loc = SourceLoc(span);
         let mut out = ParsedBindings::default();
 
-        let mark = self.local_types.unwind_point();
-        let poly_spec = self.add_type_params(loc, ty_params, ast::PolyKind::Universal, &mut out);
+        let (poly_spec, deps, arg_bound, ret_type) = {
+            let (inner, poly_spec) = self.with_type_params(loc, ty_params, ast::PolyKind::Universal, &mut out);
 
-        let mut deps = PolyAndRecDeps::default();
-        let arg_bound = deps.add(self.parse_let_pattern_sub(arg_pat, &mut out, true)?);
-        let ret_type = deps.add(self.parse_type_or_hole_sub(ret_type, arg_pat_span)?);
-
-        self.local_types.unwind(mark);
+            let mut deps = PolyAndRecDeps::default();
+            let arg_bound = deps.add(inner.parse_let_pattern_sub(arg_pat, &mut out, true)?);
+            let ret_type = deps.add(inner.parse_type_or_hole_sub(ret_type, arg_pat_span)?);
+            (poly_spec, deps, arg_bound, ret_type)
+        };
 
         let mut func_type = Rc::new((deps, span, ParsedTypeHead::Func(arg_bound, ret_type.clone())));
 

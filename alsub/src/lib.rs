@@ -8,7 +8,6 @@ pub mod reachability;
 pub mod spans;
 pub mod type_errors;
 pub mod typeck;
-pub mod unwindmap;
 
 // ---- Public API re-exports ----
 //
