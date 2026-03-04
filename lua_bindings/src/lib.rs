@@ -3,6 +3,7 @@ use mlua::prelude::*;
 pub mod ast;
 pub mod compiler;
 pub mod core;
+pub mod describe;
 pub mod types;
 
 use crate::compiler::LuaCompiler;

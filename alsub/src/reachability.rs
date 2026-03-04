@@ -42,6 +42,20 @@ impl<ExtNodeData: ExtNodeDataTrait + Clone, ExtEdgeData: EdgeDataTrait<ExtNodeDa
         self.nodes.get(lhs.0).and_then(|rn| rn.flows_to.get(&rhs))
     }
 
+    pub fn flows_from_keys(&self, i: TypeNodeInd) -> Vec<TypeNodeInd> {
+        self.nodes
+            .get(i.0)
+            .map(|rn| rn.flows_from.keys().copied().collect())
+            .unwrap_or_default()
+    }
+
+    pub fn flows_to_keys(&self, i: TypeNodeInd) -> Vec<TypeNodeInd> {
+        self.nodes
+            .get(i.0)
+            .map(|rn| rn.flows_to.keys().copied().collect())
+            .unwrap_or_default()
+    }
+
     pub fn add_node(&mut self, data: ExtNodeData) -> TypeNodeInd {
         let i = self.len();
         let n = ReachabilityNode {

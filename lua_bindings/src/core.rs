@@ -212,7 +212,7 @@ impl LuaUserData for LuaCore {
             },
         );
 
-        // Flow constraint
+        // Flow constraint (throws on error)
         methods.add_method_mut(
             "flow",
             |_, this, (value, use_, span, scopelvl): (LuaValue, LuaUse, LuaSpan, LuaScopeLvl)| {
@@ -220,6 +220,20 @@ impl LuaUserData for LuaCore {
                     .flow(value.0, use_.0, span.0, scopelvl.0)
                     .map_err(|e| LuaError::runtime(format!("TypeError: {:?}", e)))?;
                 Ok(())
+            },
+        );
+
+        // Flow constraint (returns nil, SpannedError on error instead of throwing)
+        methods.add_method_mut(
+            "try_flow",
+            |lua, this, (value, use_, span, scopelvl): (LuaValue, LuaUse, LuaSpan, LuaScopeLvl)| {
+                match this.0.flow(value.0, use_.0, span.0, scopelvl.0) {
+                    Ok(()) => Ok((true, mlua::Value::Nil)),
+                    Err(e) => {
+                        let ud = lua.create_any_userdata(LuaSpannedError(e))?;
+                        Ok((false, mlua::Value::UserData(ud)))
+                    }
+                }
             },
         );
 
@@ -254,6 +268,17 @@ impl LuaUserData for LuaCore {
         });
         methods.add_method_mut("use_placeholder", |_, this, ()| {
             Ok(LuaUse(this.0.use_placeholder()))
+        });
+
+        // Type description methods
+        methods.add_method("describe_value", |_, this, value: LuaValue| {
+            Ok(crate::describe::describe_value(&this.0, value.0))
+        });
+        methods.add_method("describe_use", |_, this, use_: LuaUse| {
+            Ok(crate::describe::describe_use(&this.0, use_.0))
+        });
+        methods.add_method("describe_demanded", |_, this, value: LuaValue| {
+            Ok(crate::describe::describe_demanded(&this.0, value.0))
         });
 
         // Type head construction methods are registered in types.rs
