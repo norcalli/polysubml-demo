@@ -137,14 +137,14 @@ impl TypeckState {
                 self.check_expr(&e.func, bound)?;
             }
             FieldAccess(e) => {
-                let bound = self.core.obj_use(vec![(e.field.0, (bound, None, e.field.1))], e.field.1);
+                let bound = self.core.obj_use([(e.field.0, (bound, None, e.field.1))], e.field.1);
                 self.check_expr(&e.expr, bound)?;
             }
             FieldSet(e) => {
                 let rhs_type = self.infer_expr(&e.value)?;
                 let bound = self
                     .core
-                    .obj_use(vec![(e.field.0, (bound, Some(rhs_type), e.field.1))], e.field.1);
+                    .obj_use([(e.field.0, (bound, Some(rhs_type), e.field.1))], e.field.1);
                 self.check_expr(&e.expr, bound)?;
             }
             InstantiateUni(e) => {
@@ -165,7 +165,7 @@ impl TypeckState {
             }
             Loop(e) => {
                 let bound = self.core.case_use(
-                    vec![(ustr::ustr("Break"), bound), (ustr::ustr("Continue"), self.core.top_use())],
+                    [(ustr::ustr("Break"), bound), (ustr::ustr("Continue"), self.core.top_use())],
                     None,
                     expr.1,
                 );

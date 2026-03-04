@@ -603,12 +603,12 @@ impl TypeCheckerCore {
         self.new_use(UTypeHead::UAbstract { ty }, span, None)
     }
 
-    pub fn obj_use(&mut self, fields: Vec<(StringId, (Use, Option<Value>, Span))>, span: Span) -> Use {
+    pub fn obj_use(&mut self, fields: impl IntoIterator<Item = (StringId, (Use, Option<Value>, Span))>, span: Span) -> Use {
         let fields = fields.into_iter().collect();
         self.new_use(UTypeHead::UObj { fields }, span, None)
     }
 
-    pub fn case_use(&mut self, cases: Vec<(StringId, Use)>, wildcard: Option<Use>, span: Span) -> Use {
+    pub fn case_use(&mut self, cases: impl IntoIterator<Item = (StringId, Use)>, wildcard: Option<Use>, span: Span) -> Use {
         let cases = cases.into_iter().collect();
         self.new_use(UTypeHead::UCase { cases, wildcard }, span, None)
     }
