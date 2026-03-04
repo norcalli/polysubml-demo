@@ -3,8 +3,8 @@ use std::rc::Rc;
 use crate::ast;
 use crate::ast::JoinKind;
 use crate::ast::PolyKind;
-use crate::ast::StringId;
 use crate::ast::TypeParam;
+use crate::ast::{StringId, StringIdMap};
 use crate::core::*;
 use crate::instantiate::InstantionContext;
 use crate::instantiate::Substitutions;
@@ -25,9 +25,9 @@ type Result<T> = std::result::Result<T, SyntaxError>;
 pub struct SourceLoc(Span);
 
 enum ParsedTypeHead {
-    Case(HashMap<StringId, (Span, RcParsedType)>),
+    Case(StringIdMap<(Span, RcParsedType)>),
     Func(RcParsedType, RcParsedType),
-    Record(HashMap<StringId, (Span, RcParsedType, Option<RcParsedType>)>),
+    Record(StringIdMap<(Span, RcParsedType, Option<RcParsedType>)>),
 
     PolyHead(Rc<PolyHeadData>, RcParsedType),
     PolyVar(VarSpec),
@@ -133,7 +133,7 @@ impl<'a> TreeMaterializer<'a> {
         let deps = self.eval(&ty.0);
         let (vhead, uhead) = match &ty.2 {
             &Case(ref cases) => {
-                let mut utype_case_arms = HashMap::new();
+                let mut utype_case_arms = StringIdMap::default();
                 let mut vtype_case_arms = Vec::new();
                 for (&tag, (tag_span, ty)) in cases {
                     let (v, u) = self.materialize_tree(ty);
@@ -171,8 +171,8 @@ impl<'a> TreeMaterializer<'a> {
                 (VFunc { arg: arg.1, ret: ret.0 }, UFunc { arg: arg.0, ret: ret.1 })
             }
             &Record(ref fields) => {
-                let mut vtype_fields = HashMap::new();
-                let mut utype_fields = HashMap::new();
+                let mut vtype_fields = StringIdMap::default();
+                let mut utype_fields = StringIdMap::default();
                 for (&name, (span, rty, wty)) in fields {
                     let rty = self.materialize_tree(rty);
                     let wty = wty.as_ref().map(|wty| self.materialize_tree(wty));
@@ -292,7 +292,7 @@ impl<'a> TreeMaterializer<'a> {
         let mut new_types = HashMap::new();
         // Now see if we have to instantiate type parameters to local abstract types
         for spec in parsed.poly_heads {
-            let subs: HashMap<_, _> = spec
+            let subs: StringIdMap<_> = spec
                 .params
                 .iter()
                 .map(|(&name, &span)| (name, self.core.add_abstract_type(name, span, bindings.scopelvl)))
@@ -340,7 +340,7 @@ impl<'a> TreeMaterializer<'a> {
 
 #[derive(Default)]
 struct ParsedBindings {
-    vars: HashMap<StringId, (Span, RcParsedType)>,
+    vars: StringIdMap<(Span, RcParsedType)>,
     types: Vec<(StringId, SourceLoc, StringId)>,
     poly_heads: Vec<Rc<PolyHeadData>>,
 }
@@ -373,18 +373,18 @@ enum TypeVar {
 }
 #[derive(Clone)]
 pub struct TypeParser<'a> {
-    global_types: &'a HashMap<StringId, TypeCtorInd>,
-    local_types: HashMap<StringId, TypeVar>,
+    global_types: &'a StringIdMap<TypeCtorInd>,
+    local_types: StringIdMap<TypeVar>,
 
     // If loc isn't allowed in either kind, remove it from the map
     join_allowed: HashMap<SourceLoc, JoinKind>,
     join_flipped: bool,
 }
 impl<'a> TypeParser<'a> {
-    pub fn new(global_types: &'a HashMap<StringId, TypeCtorInd>) -> Self {
+    pub fn new(global_types: &'a StringIdMap<TypeCtorInd>) -> Self {
         Self {
             global_types,
-            local_types: HashMap::new(),
+            local_types: StringIdMap::default(),
             join_allowed: HashMap::new(),
             join_flipped: false,
         }
@@ -456,7 +456,7 @@ impl<'a> TypeParser<'a> {
         let head = match &tyexpr.0 {
             Bot => ParsedTypeHead::Bot,
             Case(cases) => {
-                let mut m = HashMap::new();
+                let mut m = StringIdMap::default();
                 for &((tag, tag_span), ref wrapped_expr) in cases {
                     let sub = deps.add(self.parse_type_sub(wrapped_expr)?);
                     m.insert(tag, (tag_span, sub));
@@ -469,7 +469,7 @@ impl<'a> TypeParser<'a> {
                 ParsedTypeHead::Func(lhs, rhs)
             }
             Record(fields) => {
-                let mut m = HashMap::new();
+                let mut m = StringIdMap::default();
 
                 for &((name, name_span), ref type_decl) in fields {
                     use ast::FieldTypeDecl::*;
@@ -515,7 +515,7 @@ impl<'a> TypeParser<'a> {
             &Poly(ref params, ref def, kind) => {
                 let loc = SourceLoc(span);
 
-                let mut parsed_params = HashMap::new();
+                let mut parsed_params = StringIdMap::default();
                 let sub = {
                     let mut inner = self.clone();
                     inner.join_allowed.insert(
@@ -527,7 +527,8 @@ impl<'a> TypeParser<'a> {
                     );
                     for param in params.iter().copied() {
                         parsed_params.insert(param.name.0, param.name.1);
-                        inner.local_types
+                        inner
+                            .local_types
                             .insert(param.alias.0, TypeVar::Param(VarSpec { loc, name: param.name.0 }));
                     }
                     deps.add(inner.parse_type_sub(def)?)
@@ -598,7 +599,7 @@ impl<'a> TypeParser<'a> {
         }
 
         let mut inner = self.clone();
-        let mut parsed_params = HashMap::new();
+        let mut parsed_params = StringIdMap::default();
         for param in ty_params.iter().copied() {
             let (name, name_span) = param.name;
             let (alias, _alias_span) = param.alias;
@@ -654,7 +655,7 @@ impl<'a> TypeParser<'a> {
                 let sub = self.parse_let_pattern_sub(val_pat, out, true)?;
 
                 let deps = sub.0.clone();
-                let mut m = HashMap::new();
+                let mut m = StringIdMap::default();
                 m.insert(tag, (span, sub));
 
                 Rc::new((deps, span, ParsedTypeHead::Case(m)))
@@ -665,8 +666,8 @@ impl<'a> TypeParser<'a> {
                 let (poly_spec, fields, mut deps) = {
                     let (inner, poly_spec) = self.with_type_params(loc, ty_params, ast::PolyKind::Existential, out);
 
-                    let mut field_names = HashMap::new();
-                    let mut fields = HashMap::new();
+                    let mut field_names = StringIdMap::default();
+                    let mut fields = StringIdMap::default();
                     let mut deps = PolyAndRecDeps::default();
                     for &((name, name_span), ref sub_pattern) in pairs {
                         if let Some(old_span) = field_names.insert(name, name_span) {

@@ -136,11 +136,7 @@ fn be_a(s: &str) -> TMsg {
     TMsg::BeA(s.to_owned())
 }
 
-pub fn type_mismatch_err(
-    type_ctors: &im_rc::Vector<TypeCtor>,
-    lhs: &VTypeNode,
-    rhs: &UTypeNode,
-) -> PartialTypeError {
+pub fn type_mismatch_err(type_ctors: &im_rc::Vector<TypeCtor>, lhs: &VTypeNode, rhs: &UTypeNode) -> PartialTypeError {
     use TMsg::*;
     use UTypeHead::*;
     use VTypeHead::*;
@@ -245,20 +241,12 @@ pub fn immutable_field_err(lhs_span: Span, rhs_span: Span, name: &str) -> Partia
     parts
 }
 
-pub fn type_escape_error(
-    ty_ctor: &TypeCtor,
-    lhs: &VTypeNode,
-    rhs: &UTypeNode,
-    scopelvl: ScopeLvl,
-) -> PartialTypeError {
+pub fn type_escape_error(ty_ctor: &TypeCtor, lhs: &VTypeNode, rhs: &UTypeNode, scopelvl: ScopeLvl) -> PartialTypeError {
     let mut parts = PartialTypeError::new();
     parts.1 = scopelvl;
 
     parts.push(
-        format!(
-            "TypeError: Type {} defined here escapes its scope",
-            ty_ctor.name.as_str(),
-        ),
+        format!("TypeError: Type {} defined here escapes its scope", ty_ctor.name.as_str(),),
         ty_ctor.span.unwrap(),
     );
     parts.push(format!("Note: A value of this type originates here:"), lhs.1);

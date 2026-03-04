@@ -2,10 +2,10 @@ use std::mem::swap;
 
 use im_rc::HashMap;
 
-use alsub::ast;
-use alsub::ast::StringId;
-use alsub::Spanned;
 use crate::js;
+use alsub::Spanned;
+use alsub::ast;
+use alsub::ast::{StringId, StringIdMap};
 
 pub struct ModuleBuilder {
     scope_var_name: String, // name of JS var used to store variables in the current scope
@@ -14,7 +14,7 @@ pub struct ModuleBuilder {
     // For choosing new var names
     var_counter: u64,
     // ML name -> JS expr for current scope
-    bindings: HashMap<StringId, js::Expr>,
+    bindings: StringIdMap<js::Expr>,
 }
 impl ModuleBuilder {
     pub fn new() -> Self {
@@ -23,7 +23,7 @@ impl ModuleBuilder {
             scope_counter: 0,
             param_counter: 0,
             var_counter: 0,
-            bindings: HashMap::new(),
+            bindings: StringIdMap::default(),
         }
     }
 
@@ -125,8 +125,7 @@ impl<'a> core::ops::DerefMut for Context<'a> {
 }
 
 fn is_bool_case(e: &ast::expr::CaseExpr) -> bool {
-    (e.tag.0.as_str() == "t" || e.tag.0.as_str() == "f")
-        && matches!(&e.expr.0, ast::Expr::Record(r) if r.fields.is_empty())
+    (e.tag.0.as_str() == "t" || e.tag.0.as_str() == "f") && matches!(&e.expr.0, ast::Expr::Record(r) if r.fields.is_empty())
 }
 
 fn is_bool_match(cases: &[(Spanned<ast::LetPattern>, Box<ast::SExpr>)]) -> bool {
@@ -263,8 +262,16 @@ fn compile(ctx: &mut Context<'_>, expr: &ast::SExpr) -> js::Expr {
 
             // For boolean matches, compare directly against true/false
             // For variant matches, compare $tag strings
-            let tag_expr = if is_bool { temp_var.clone() } else { js::field(temp_var.clone(), "$tag") };
-            let val_expr = if is_bool { js::obj(vec![]) } else { js::field(temp_var.clone(), "$val") };
+            let tag_expr = if is_bool {
+                temp_var.clone()
+            } else {
+                js::field(temp_var.clone(), "$tag")
+            };
+            let val_expr = if is_bool {
+                js::obj(vec![])
+            } else {
+                js::field(temp_var.clone(), "$val")
+            };
 
             let mut branches = Vec::new();
             let mut wildcard = None;

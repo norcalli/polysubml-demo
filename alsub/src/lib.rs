@@ -35,12 +35,12 @@ pub mod typeck;
 // Most users will work at layer 1 (constraint graph) for ad-hoc type checking.
 
 // Layer 1: Constraint graph — core types for building and solving constraints
+pub use crate::bound_pairs_set::BoundPairsSet;
 pub use crate::core::{
-    FlowReason, InferenceVarData, PolyHeadData, ScopeLvl, TypeCheckerCore, TypeCtor, TypeCtorInd,
-    TypeEdge, TypeNode, UTypeHead, UTypeNode, Use, VTypeHead, VTypeNode, Value, VarSpec,
+    FlowReason, InferenceVarData, PolyHeadData, ScopeLvl, TypeCheckerCore, TypeCtor, TypeCtorInd, TypeEdge, TypeNode,
+    UTypeHead, UTypeNode, Use, VTypeHead, VTypeNode, Value, VarSpec,
 };
 pub use crate::reachability::TypeNodeInd;
-pub use crate::bound_pairs_set::BoundPairsSet;
 
 // Layer 2: Type materialization — convert type expressions into constraint graph nodes
 pub use crate::parse_types::{PolyDeps, SourceLoc, TreeMaterializer, TreeMaterializerState};
@@ -49,8 +49,8 @@ pub use crate::parse_types::{PolyDeps, SourceLoc, TreeMaterializer, TreeMaterial
 pub use crate::typeck::{Bindings, TypeckState};
 
 // Span and error types
-pub use crate::spans::{Span, SpanManager, SpanMaker, Spanned, SpannedError};
+pub use crate::spans::{Span, SpanMaker, SpanManager, Spanned, SpannedError};
 
 // String interning (re-export for convenience)
-pub use ustr::{ustr, Ustr};
 pub use crate::ast::StringId;
+pub use ustr::{Ustr, ustr};

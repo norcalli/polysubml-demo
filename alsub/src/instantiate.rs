@@ -1,12 +1,12 @@
 use im_rc::HashMap;
 
-use crate::ast::StringId;
+use crate::ast::StringIdMap;
 use crate::core::*;
 use crate::parse_types::SourceLoc;
 
 pub enum Substitutions<'a> {
-    Type(&'a HashMap<StringId, (Value, Use)>),
-    Abs(&'a HashMap<StringId, TypeCtorInd>),
+    Type(&'a StringIdMap<(Value, Use)>),
+    Abs(&'a StringIdMap<TypeCtorInd>),
 }
 
 pub struct InstantionContext<'a> {

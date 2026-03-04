@@ -83,9 +83,7 @@ impl State {
 
     fn process_sub(&mut self, source: &str) -> Result<String, SpannedError> {
         let span_maker = self.spans.add_source(source.to_owned());
-        let mut ctx = ast::ParserContext {
-            span_maker,
-        };
+        let mut ctx = ast::ParserContext { span_maker };
 
         let ast = self
             .parser

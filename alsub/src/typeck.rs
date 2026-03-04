@@ -1,11 +1,9 @@
-use im_rc::HashMap;
-
 use crate::ast;
-use crate::ast::StringId;
-use crate::spans::Span;
+use crate::ast::StringIdMap;
 use crate::core::*;
 use crate::parse_types::TreeMaterializerState;
 use crate::parse_types::TypeParser;
+use crate::spans::Span;
 use crate::spans::SpannedError as SyntaxError;
 use crate::type_errors::HoleSrc;
 
@@ -16,15 +14,15 @@ type Result<T> = std::result::Result<T, SyntaxError>;
 
 #[derive(Clone)]
 pub struct Bindings {
-    pub vars: HashMap<StringId, Value>,
-    pub types: HashMap<StringId, TypeCtorInd>,
+    pub vars: StringIdMap<Value>,
+    pub types: StringIdMap<TypeCtorInd>,
     pub scopelvl: ScopeLvl,
 }
 impl Bindings {
     fn new() -> Self {
         Self {
-            vars: HashMap::new(),
-            types: HashMap::new(),
+            vars: StringIdMap::default(),
+            types: StringIdMap::default(),
             scopelvl: ScopeLvl(0),
         }
     }
@@ -66,10 +64,34 @@ impl TypeckState {
     /// Create a bool-typed value: `t {} | `f {} via an inference variable
     fn make_bool_val(&mut self, span: Span) -> Value {
         let (val, use_) = self.core.var(HoleSrc::CheckedExpr(span), self.bindings.scopelvl);
-        let empty_t = self.core.new_val(VObj { fields: HashMap::new() }, span, None);
-        let empty_f = self.core.new_val(VObj { fields: HashMap::new() }, span, None);
-        let case_t = self.core.new_val(VCase { case: (ustr::ustr("t"), empty_t) }, span, None);
-        let case_f = self.core.new_val(VCase { case: (ustr::ustr("f"), empty_f) }, span, None);
+        let empty_t = self.core.new_val(
+            VObj {
+                fields: StringIdMap::default(),
+            },
+            span,
+            None,
+        );
+        let empty_f = self.core.new_val(
+            VObj {
+                fields: StringIdMap::default(),
+            },
+            span,
+            None,
+        );
+        let case_t = self.core.new_val(
+            VCase {
+                case: (ustr::ustr("t"), empty_t),
+            },
+            span,
+            None,
+        );
+        let case_f = self.core.new_val(
+            VCase {
+                case: (ustr::ustr("f"), empty_f),
+            },
+            span,
+            None,
+        );
         self.core.flow(case_t, use_, span, self.bindings.scopelvl).unwrap();
         self.core.flow(case_f, use_, span, self.bindings.scopelvl).unwrap();
         val
@@ -126,7 +148,7 @@ impl TypeckState {
                 self.check_expr(&e.expr, bound)?;
             }
             InstantiateUni(e) => {
-                let mut params = HashMap::new();
+                let mut params = StringIdMap::default();
                 for &(name, ref sig) in &e.types.0 {
                     params.insert(name, self.parse_type_signature(sig)?);
                 }
@@ -143,10 +165,7 @@ impl TypeckState {
             }
             Loop(e) => {
                 let bound = self.core.case_use(
-                    vec![
-                        (ustr::ustr("Break"), bound),
-                        (ustr::ustr("Continue"), self.core.top_use()),
-                    ],
+                    vec![(ustr::ustr("Break"), bound), (ustr::ustr("Continue"), self.core.top_use())],
                     None,
                     expr.1,
                 );
@@ -160,7 +179,7 @@ impl TypeckState {
                 let mut wildcard_type = None;
 
                 // Pattern reachability checking
-                let mut case_names: HashMap<StringId, _> = HashMap::new();
+                let mut case_names = StringIdMap::default();
                 let mut wildcard = None;
 
                 for ((pattern, pattern_span), rhs_expr) in cases {
@@ -260,9 +279,7 @@ impl TypeckState {
                         };
                         Ok(self.core.simple_val(cls, expr.1))
                     }
-                    RetType::Bool => {
-                        Ok(self.make_bool_val(expr.1))
-                    }
+                    RetType::Bool => Ok(self.make_bool_val(expr.1)),
                 }
             }
             // Allow block expressions to be inferred as well as checked
@@ -312,7 +329,7 @@ impl TypeckState {
                 let (ref sigs, sigs_span) = e.types;
                 let src_kind = e.source;
                 let full_span = expr.1;
-                let mut params = HashMap::new();
+                let mut params = StringIdMap::default();
                 for &(name, ref sig) in sigs {
                     params.insert(name, self.parse_type_signature(sig)?);
                 }
@@ -340,7 +357,7 @@ impl TypeckState {
                 Ok(self.core.simple_val(ty, span))
             }
             Record(e) => {
-                let mut field_names: HashMap<StringId, _> = HashMap::new();
+                let mut field_names = StringIdMap::default();
                 let mut field_type_pairs = Vec::with_capacity(e.fields.len());
                 for ((name, name_span), expr, mutable, type_annot) in &e.fields {
                     if let Some(old_span) = field_names.insert(*name, *name_span) {
@@ -477,11 +494,7 @@ impl TypeckState {
         Ok(())
     }
 
-    fn check_statement(
-        &mut self,
-        def: &ast::Statement,
-        allow_useless_exprs: bool,
-    ) -> Result<()> {
+    fn check_statement(&mut self, def: &ast::Statement, allow_useless_exprs: bool) -> Result<()> {
         use ast::Statement::*;
         match def {
             Empty => {}

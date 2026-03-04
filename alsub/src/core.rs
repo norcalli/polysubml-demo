@@ -5,7 +5,7 @@ use im_rc::HashSet;
 
 use crate::ast::InstantiateSourceKind;
 use crate::ast::PolyKind;
-use crate::ast::StringId;
+use crate::ast::{StringId, StringIdMap};
 use crate::bound_pairs_set::BoundPairsSet;
 use crate::instantiate::InstantionContext;
 use crate::instantiate::Substitutions;
@@ -66,7 +66,7 @@ pub struct TypeCtorInd(pub usize);
 pub struct PolyHeadData {
     pub kind: PolyKind,
     pub loc: SourceLoc,
-    pub params: HashMap<StringId, Span>,
+    pub params: StringIdMap<Span>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -80,7 +80,7 @@ pub struct VarSpec {
 pub enum VTypeHead {
     VUnion(Rc<[Value]>),
     VInstantiateExist {
-        explicit_params: HashMap<StringId, (Value, Use)>,
+        explicit_params: StringIdMap<(Value, Use)>,
         target: Value,
         src_template: (Span, InstantiateSourceKind),
     },
@@ -91,7 +91,7 @@ pub enum VTypeHead {
         ret: Value,
     },
     VObj {
-        fields: HashMap<StringId, (Value, Option<Use>, Span)>,
+        fields: StringIdMap<(Value, Option<Use>, Span)>,
     },
     VCase {
         case: (StringId, Value),
@@ -109,7 +109,7 @@ pub enum VTypeHead {
 pub enum UTypeHead {
     UIntersection(Rc<[Use]>),
     UInstantiateUni {
-        explicit_params: HashMap<StringId, (Value, Use)>,
+        explicit_params: StringIdMap<(Value, Use)>,
         target: Use,
         src_template: (Span, InstantiateSourceKind),
     },
@@ -120,10 +120,10 @@ pub enum UTypeHead {
         ret: Use,
     },
     UObj {
-        fields: HashMap<StringId, (Use, Option<Value>, Span)>,
+        fields: StringIdMap<(Use, Option<Value>, Span)>,
     },
     UCase {
-        cases: HashMap<StringId, Use>,
+        cases: StringIdMap<Use>,
         wildcard: Option<Use>,
     },
     UAbstract {
@@ -140,7 +140,7 @@ enum CheckHeadsResult {
     Done,
     Instantiate {
         poly: Rc<PolyHeadData>,
-        explicit_params: HashMap<StringId, (Value, Use)>,
+        explicit_params: StringIdMap<(Value, Use)>,
         instantiation_node: TypeNodeInd,
         src_template: (Span, InstantiateSourceKind),
         reason: FlowReason,
@@ -437,7 +437,7 @@ pub struct TypeCheckerCore {
     pub varcount: u32,
     /// Cache of resolved instantiation params (explicit + inferred).
     /// Stored here (not in type heads) so it gets properly rolled back with snapshots.
-    resolved_instantiation_params: HashMap<TypeNodeInd, HashMap<StringId, (Value, Use)>>,
+    resolved_instantiation_params: HashMap<TypeNodeInd, StringIdMap<(Value, Use)>>,
 }
 impl TypeCheckerCore {
     pub fn new() -> Self {
@@ -471,13 +471,7 @@ impl TypeCheckerCore {
         }
     }
 
-    pub fn flow(
-        &mut self,
-        lhs: Value,
-        rhs: Use,
-        expl_span: Span,
-        scopelvl: ScopeLvl,
-    ) -> Result<(), TypeError> {
+    pub fn flow(&mut self, lhs: Value, rhs: Use, expl_span: Span, scopelvl: ScopeLvl) -> Result<(), TypeError> {
         self.flowcount += 1;
         // println!("flow #{}: {}->{}", self.flowcount, lhs.0.0, rhs.0.0);
 

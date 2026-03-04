@@ -83,10 +83,9 @@ fn execute_js(rt: &Runtime, js_code: &str) -> Result<(), String> {
         ctx.eval::<(), _>(script.as_str()).map_err(|e| {
             if let rquickjs::Error::Exception = e {
                 let caught = ctx.catch();
-                caught.as_exception().map_or_else(
-                    || format!("{:?}", caught),
-                    |ex| format!("{}", ex),
-                )
+                caught
+                    .as_exception()
+                    .map_or_else(|| format!("{:?}", caught), |ex| format!("{}", ex))
             } else {
                 e.to_string()
             }
@@ -180,11 +179,7 @@ fn regression_tests() {
     .unwrap();
 
     if !failed.is_empty() {
-        panic!(
-            "{} regression tests failed:\n  {}",
-            failed.len(),
-            failed.join("\n  ")
-        );
+        panic!("{} regression tests failed:\n  {}", failed.len(), failed.join("\n  "));
     }
 
     assert!(passed > 0, "No regression tests found");

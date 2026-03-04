@@ -246,8 +246,14 @@ pub fn if_expr(cond: Spanned<Box<SExpr>>, then_expr: Box<SExpr>, else_expr: Box<
     match_expr(
         cond,
         vec![
-            ((LetPattern::Case((ustr::ustr("t"), span), Box::new(wildcard.clone())), span), then_expr),
-            ((LetPattern::Case((ustr::ustr("f"), span), Box::new(wildcard)), span), else_expr),
+            (
+                (LetPattern::Case((ustr::ustr("t"), span), Box::new(wildcard.clone())), span),
+                then_expr,
+            ),
+            (
+                (LetPattern::Case((ustr::ustr("f"), span), Box::new(wildcard)), span),
+                else_expr,
+            ),
         ],
     )
 }

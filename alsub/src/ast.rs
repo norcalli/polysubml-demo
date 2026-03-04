@@ -12,6 +12,10 @@ pub struct ParserContext<'input> {
 }
 pub type StringId = ustr::Ustr;
 
+type UstrBuildHasher = std::hash::BuildHasherDefault<ustr::IdentityHasher>;
+/// Immutable HashMap keyed by StringId, using Ustr's identity hasher.
+pub type StringIdMap<V> = im_rc::HashMap<StringId, V, UstrBuildHasher>;
+
 #[derive(Debug, Clone)]
 pub enum Literal {
     Float,

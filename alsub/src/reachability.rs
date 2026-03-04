@@ -21,13 +21,9 @@ struct ReachabilityNode<ExtNodeData, ExtEdgeData> {
 pub struct Reachability<ExtNodeData, ExtEdgeData> {
     nodes: Vector<ReachabilityNode<ExtNodeData, ExtEdgeData>>,
 }
-impl<ExtNodeData: ExtNodeDataTrait + Clone, ExtEdgeData: EdgeDataTrait<ExtNodeData>>
-    Reachability<ExtNodeData, ExtEdgeData>
-{
+impl<ExtNodeData: ExtNodeDataTrait + Clone, ExtEdgeData: EdgeDataTrait<ExtNodeData>> Reachability<ExtNodeData, ExtEdgeData> {
     pub fn new() -> Self {
-        Self {
-            nodes: Vector::new(),
-        }
+        Self { nodes: Vector::new() }
     }
 
     pub fn len(&self) -> usize {
@@ -57,12 +53,7 @@ impl<ExtNodeData: ExtNodeDataTrait + Clone, ExtEdgeData: EdgeDataTrait<ExtNodeDa
         TypeNodeInd(i)
     }
 
-    fn update_edge_value(
-        &mut self,
-        lhs: TypeNodeInd,
-        rhs: TypeNodeInd,
-        val: ExtEdgeData,
-    ) {
+    fn update_edge_value(&mut self, lhs: TypeNodeInd, rhs: TypeNodeInd, val: ExtEdgeData) {
         // Update flows_to on lhs node
         let lhs_node = self.nodes.get_mut(lhs.0).unwrap();
         lhs_node.flows_to.insert(rhs, val.clone());
