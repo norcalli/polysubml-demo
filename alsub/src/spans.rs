@@ -96,10 +96,14 @@ impl SpanManager {
         }
     }
 
-    fn new_span(&mut self, source_ind: usize, l: usize, r: usize) -> Span {
+    pub fn new_span(&mut self, source_ind: usize, l: usize, r: usize) -> Span {
         let i = self.spans.len();
         self.spans.push((source_ind, l, r));
         Span(i)
+    }
+
+    pub fn source_count(&self) -> usize {
+        self.sources.len()
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////

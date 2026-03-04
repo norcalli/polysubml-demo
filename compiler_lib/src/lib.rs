@@ -137,4 +137,34 @@ impl State {
         self.compiler = ModuleBuilder::new();
         self.lua_compiler = LuaModuleBuilder::new();
     }
+
+    // ---- Split pipeline methods ----
+
+    pub fn parse(&mut self, source: &str) -> Result<Vec<ast::Statement>, SpannedError> {
+        let span_maker = self.spans.add_source(source.to_owned());
+        let mut ctx = ast::ParserContext { span_maker };
+        self.parser
+            .parse(&mut ctx, source)
+            .map_err(|e| convert_parse_error(ctx.span_maker, e))
+    }
+
+    pub fn check(&mut self, ast: &[ast::Statement]) -> Result<(), SpannedError> {
+        self.checker.check_script(ast)
+    }
+
+    pub fn generate_lua(&mut self, ast: &[ast::Statement]) -> String {
+        let mut ctx = lua_codegen::Context(&mut self.lua_compiler);
+        let lua_ast = lua_codegen::compile_script(&mut ctx, ast);
+        lua_ast.to_source()
+    }
+
+    pub fn generate_js(&mut self, ast: &[ast::Statement]) -> String {
+        let mut ctx = codegen::Context(&mut self.compiler);
+        let js_ast = codegen::compile_script(&mut ctx, ast);
+        js_ast.to_source()
+    }
+
+    pub fn format_error(&self, e: &SpannedError) -> String {
+        e.print(&self.spans)
+    }
 }

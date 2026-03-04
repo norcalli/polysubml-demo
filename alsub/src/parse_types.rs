@@ -23,6 +23,11 @@ type Result<T> = std::result::Result<T, SyntaxError>;
 // Represent distinct declarations of polymorphic/existential types in the source code
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceLoc(Span);
+impl SourceLoc {
+    pub fn from_span(span: Span) -> Self {
+        Self(span)
+    }
+}
 
 enum ParsedTypeHead {
     Case(StringIdMap<(Span, RcParsedType)>),

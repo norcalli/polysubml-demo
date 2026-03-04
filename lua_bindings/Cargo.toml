@@ -1,0 +1,13 @@
+[package]
+name = "lua_bindings"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+alsub = { path = "../alsub" }
+compiler_lib = { path = "../compiler_lib" }
+mlua = { version = "0.10", features = ["luajit", "module"] }
+ustr = "1"
