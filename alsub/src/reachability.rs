@@ -1,4 +1,4 @@
-use im_rc::{HashMap, Vector};
+use im_rc::{OrdMap, Vector};
 
 pub trait ExtNodeDataTrait {}
 
@@ -13,8 +13,8 @@ pub struct TypeNodeInd(pub usize);
 #[derive(Clone, Debug)]
 struct ReachabilityNode<ExtNodeData, ExtEdgeData> {
     data: ExtNodeData,
-    flows_from: HashMap<TypeNodeInd, ExtEdgeData>,
-    flows_to: HashMap<TypeNodeInd, ExtEdgeData>,
+    flows_from: OrdMap<TypeNodeInd, ExtEdgeData>,
+    flows_to: OrdMap<TypeNodeInd, ExtEdgeData>,
 }
 
 #[derive(Clone)]
@@ -50,8 +50,8 @@ impl<ExtNodeData: ExtNodeDataTrait + Clone, ExtEdgeData: EdgeDataTrait<ExtNodeDa
         let i = self.len();
         let n = ReachabilityNode {
             data,
-            flows_from: HashMap::new(),
-            flows_to: HashMap::new(),
+            flows_from: OrdMap::new(),
+            flows_to: OrdMap::new(),
         };
         self.nodes.push_back(n);
         TypeNodeInd(i)
@@ -95,23 +95,20 @@ impl<ExtNodeData: ExtNodeDataTrait + Clone, ExtEdgeData: EdgeDataTrait<ExtNodeDa
             };
             self.update_edge_value(lhs, rhs, edge_val.clone());
 
-            // Collect ancestors and descendants before mutating
-            // Sort to ensure deterministic iteration order (HashMap iteration is unordered)
-            let mut lhs_ancestors: Vec<TypeNodeInd> = self.nodes.get(lhs.0).unwrap()
-                .flows_from.keys().copied().collect();
-            lhs_ancestors.sort();
-            let mut rhs_descendants: Vec<TypeNodeInd> = self.nodes.get(rhs.0).unwrap()
-                .flows_to.keys().copied().collect();
-            rhs_descendants.sort();
+            // Clone the edge maps to release the borrow on self (O(1) with OrdMap)
+            let lhs_node = self.nodes.get(lhs.0).unwrap();
+            let lhs_from = lhs_node.flows_from.clone();
+            let lhs_expanded = edge_val.clone().expand(&lhs_node.data, lhs);
 
-            let temp = edge_val.clone().expand(&self.nodes.get(lhs.0).unwrap().data, lhs);
-            for lhs2 in lhs_ancestors {
-                work.push((lhs2, rhs, temp.clone()));
+            let rhs_node = self.nodes.get(rhs.0).unwrap();
+            let rhs_to = rhs_node.flows_to.clone();
+            let rhs_expanded = edge_val.clone().expand(&rhs_node.data, rhs);
+
+            for (lhs2, _) in &lhs_from {
+                work.push((*lhs2, rhs, lhs_expanded.clone()));
             }
-
-            let temp = edge_val.clone().expand(&self.nodes.get(rhs.0).unwrap().data, rhs);
-            for rhs2 in rhs_descendants {
-                work.push((lhs, rhs2, temp.clone()));
+            for (rhs2, _) in &rhs_to {
+                work.push((lhs, *rhs2, rhs_expanded.clone()));
             }
 
             out.push((lhs, rhs, edge_val));
