@@ -5,6 +5,8 @@
 mod codegen;
 mod grammar;
 mod js;
+pub mod lua;
+mod lua_codegen;
 
 // Re-export alsub modules so grammar.lalr's `use super::ast` and `use super::spans` resolve
 pub use alsub::ast;
@@ -14,6 +16,7 @@ use lalrpop_util::ParseError;
 
 use self::codegen::ModuleBuilder;
 use self::grammar::ScriptParser;
+use self::lua_codegen::ModuleBuilder as LuaModuleBuilder;
 use alsub::spans::{SpanMaker, SpanManager, SpannedError};
 use alsub::typeck::TypeckState;
 
@@ -67,6 +70,7 @@ pub struct State {
 
     checker: TypeckState,
     compiler: ModuleBuilder,
+    lua_compiler: LuaModuleBuilder,
 }
 impl State {
     pub fn new() -> Self {
@@ -78,6 +82,7 @@ impl State {
 
             checker,
             compiler: ModuleBuilder::new(),
+            lua_compiler: LuaModuleBuilder::new(),
         }
     }
 
@@ -104,8 +109,32 @@ impl State {
         }
     }
 
+    fn process_sub_lua(&mut self, source: &str) -> Result<String, SpannedError> {
+        let span_maker = self.spans.add_source(source.to_owned());
+        let mut ctx = ast::ParserContext { span_maker };
+
+        let ast = self
+            .parser
+            .parse(&mut ctx, source)
+            .map_err(|e| convert_parse_error(ctx.span_maker, e))?;
+        let _t = self.checker.check_script(&ast)?;
+
+        let mut ctx = lua_codegen::Context(&mut self.lua_compiler);
+        let lua_ast = lua_codegen::compile_script(&mut ctx, &ast);
+        Ok(lua_ast.to_source())
+    }
+
+    pub fn process_lua(&mut self, source: &str) -> CompilationResult {
+        let res = self.process_sub_lua(source);
+        match res {
+            Ok(s) => CompilationResult::Success(s),
+            Err(e) => CompilationResult::Error(e.print(&self.spans)),
+        }
+    }
+
     pub fn reset(&mut self) {
         self.checker = TypeckState::new();
         self.compiler = ModuleBuilder::new();
+        self.lua_compiler = LuaModuleBuilder::new();
     }
 }
