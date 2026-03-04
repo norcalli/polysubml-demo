@@ -18,3 +18,4 @@ tempfile = "3.0"
 
 [dev-dependencies]
 similar = { version = "2.2", features = ["text"] }
+rquickjs = { version = "0.11", features = ["bindgen"] }

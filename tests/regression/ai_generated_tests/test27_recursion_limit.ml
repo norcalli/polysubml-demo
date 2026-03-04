@@ -1,4 +1,5 @@
 // Test 27: Recursion limit test
+// expect-runtime-error
 let rec deep_recursion = fun n ->
     if n <= 0 then
         0

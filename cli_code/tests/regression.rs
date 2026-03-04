@@ -1,4 +1,5 @@
 use compiler_lib::{CompilationResult, State};
+use rquickjs::{Context, Runtime};
 use similar::{ChangeTag, TextDiff};
 use std::fs;
 use std::io::Write;
@@ -6,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 const REGRESSION_DIR: &str = "tests/regression";
 const BASELINE_DIR: &str = "tests/regression/baselines";
+const JS_RUNTIME: &str = include_str!("../src/js_runtime.js");
 
 fn workspace_root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap()
@@ -71,6 +73,27 @@ fn show_diff(out: &mut fs::File, expected: &str, actual: &str) {
     }
 }
 
+fn execute_js(rt: &Runtime, js_code: &str) -> Result<(), String> {
+    let ctx = Context::full(rt).unwrap();
+    let script = format!(
+        "{}\n;\nconst $ = Object.create(null);\nconst p = {{println() {{}}}};\n{}",
+        JS_RUNTIME, js_code
+    );
+    ctx.with(|ctx| {
+        ctx.eval::<(), _>(script.as_str()).map_err(|e| {
+            if let rquickjs::Error::Exception = e {
+                let caught = ctx.catch();
+                caught.as_exception().map_or_else(
+                    || format!("{:?}", caught),
+                    |ex| format!("{}", ex),
+                )
+            } else {
+                e.to_string()
+            }
+        })
+    })
+}
+
 /// Set UPDATE_BASELINES=1 to regenerate all .expected files.
 #[test]
 fn regression_tests() {
@@ -95,6 +118,8 @@ fn regression_tests() {
         return;
     }
 
+    let rt = Runtime::new().unwrap();
+
     let mut passed = 0;
     let mut skipped = 0;
     let mut failed = Vec::new();
@@ -114,13 +139,33 @@ fn regression_tests() {
         let source = fs::read_to_string(test_path).unwrap();
         let actual = State::new().process(&source);
 
-        if actual == expected {
-            passed += 1;
-            writeln!(out, "  \x1b[32m✓\x1b[0m {}", name).unwrap();
-        } else {
-            writeln!(out, "\n  FAIL: {}", name).unwrap();
+        if actual != expected {
+            writeln!(out, "\n  \x1b[31m✗\x1b[0m {} (baseline mismatch)", name).unwrap();
             show_diff(&mut out, &expected.to_string(), &actual.to_string());
             failed.push(name.to_string());
+            continue;
+        }
+
+        // Also execute successful JS through QuickJS
+        let expect_runtime_error = source.contains("// expect-runtime-error");
+        if let CompilationResult::Success(ref js_code) = actual {
+            match (execute_js(&rt, js_code), expect_runtime_error) {
+                (Ok(()), false) | (Err(_), true) => {
+                    passed += 1;
+                    writeln!(out, "  \x1b[32m✓\x1b[0m {}", name).unwrap();
+                }
+                (Err(e), false) => {
+                    writeln!(out, "  \x1b[31m✗\x1b[0m {} (js error: {:.200})", name, e).unwrap();
+                    failed.push(format!("{}: {:.200}", name, e));
+                }
+                (Ok(()), true) => {
+                    writeln!(out, "  \x1b[31m✗\x1b[0m {} (expected runtime error but succeeded)", name).unwrap();
+                    failed.push(name.to_string());
+                }
+            }
+        } else {
+            passed += 1;
+            writeln!(out, "  \x1b[32m✓\x1b[0m {}", name).unwrap();
         }
     }
 
