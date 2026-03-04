@@ -379,6 +379,7 @@ pub struct TypeParser<'a> {
 
     // If loc isn't allowed in either kind, remove it from the map
     join_allowed: HashMap<SourceLoc, JoinKind>,
+    join_flipped: bool,
 }
 impl<'a> TypeParser<'a> {
     pub fn new(global_types: &'a HashMap<StringId, TypeCtorInd>) -> Self {
@@ -386,6 +387,7 @@ impl<'a> TypeParser<'a> {
             global_types,
             local_types: UnwindMap::new(),
             join_allowed: HashMap::new(),
+            join_flipped: false,
         }
     }
 
@@ -404,7 +406,8 @@ impl<'a> TypeParser<'a> {
 
             match sub.2 {
                 PolyVar(spec) => {
-                    if self.join_allowed.get(&spec.loc) == Some(&kind) {
+                    let effective_kind = if self.join_flipped { flip(&kind) } else { kind };
+                    if self.join_allowed.get(&spec.loc) == Some(&effective_kind) {
                         vars.insert(spec, sub.1);
                         continue;
                     }
@@ -436,9 +439,9 @@ impl<'a> TypeParser<'a> {
     }
 
     fn parse_type_sub_contravariant(&mut self, tyexpr: &ast::STypeExpr) -> Result<RcParsedType> {
-        self.join_allowed = self.join_allowed.iter().map(|(&k, v)| (k, flip(v))).collect();
+        self.join_flipped = !self.join_flipped;
         let res = self.parse_type_sub(tyexpr);
-        self.join_allowed = self.join_allowed.iter().map(|(&k, v)| (k, flip(v))).collect();
+        self.join_flipped = !self.join_flipped;
         res
     }
 
